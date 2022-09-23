@@ -16,51 +16,45 @@ parse_html = partial(etree.fromstring, parser=etree.HTMLParser())
 parse_xml = etree.fromstring
 
 
-def load(path: Path):
-    with path.open('r', encoding='utf8') as f:
-        return loads(f.read())
-
-
 url_format = """\
 [InternetShortcut]
-URL={link}
+URL={url}
 """.format
 
-config = load(project / 'config.json')
-
-last_links_path = project / 'last_links.json'
-last_links = load(last_links_path)
+config_path = project / 'config.json'
+with config_path.open('r', encoding='utf8') as f:
+    config = loads(f.read())
 
 
 async def check(sub):
-    url = sub['url']
-    content = await (await client.get(url, ssl=sub.get('ssl'))).read()
+    main_url = sub['url'].rstrip('/')
+    content = await (await client.get(main_url, ssl=sub.get('ssl'))).read()
 
     if sub['doctype'] == 'xml':
         xp = parse_xml(content).xpath
     else:
         xp = parse_html(content).xpath
 
-    url_last_links = last_links.setdefault(url, {})
-
-    for links_xp, titles_xp in sub['link_title_xpaths']:
-        last_link = url_last_links.get(links_xp)
-        last_list_was_updated = False
+    for xpath in sub['xpaths']:
+        links_xp = xpath['links']
+        titles_xp = xpath['titles']
+        last_match = xpath.get('last_match')
+        found_new_link = False
 
         for link, title in zip(xp(links_xp), xp(titles_xp)):
-            if link == last_link:
+            if link == last_match:
                 break
             if link[0] == '/':  # relative link
-                link = url.rstrip('/') + link
+                url = main_url + link
             title = title.strip().translate(slug_table)
             with open(inbox / f'{title}.URL', 'w', encoding='utf8') as f:
-                f.write(url_format(link=link))
+                f.write(url_format(url=url))
 
-            if last_list_was_updated is False:
-                url_last_links[links_xp] = link
-                last_list_was_updated = True
+            if found_new_link is False:
+                xpath['last_match'] = link
+                found_new_link = True
         else:
-            if last_list_was_updated is False:
+            if found_new_link is False:
                 print(f'no match: {url=} {links_xp=}')
 
 
@@ -74,10 +68,10 @@ async def check_all():
 run(check_all())
 
 
-with last_links_path.open('w', encoding='utf8') as f:
+with config_path.open('w', encoding='utf8') as f:
     f.write(
         dumps(
-            last_links,
+            config,
             ensure_ascii=False,
             check_circular=False,
             sort_keys=True,
