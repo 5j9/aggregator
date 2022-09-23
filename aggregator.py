@@ -59,7 +59,7 @@ async def check(sub):
                 found_new_link = True
         else:
             if found_new_link is False:
-                print(f'no match: {url=} {links_xp=}')
+                print(f'no match: {main_url=} {links_xp=}')
 
 
 async def check_all():
