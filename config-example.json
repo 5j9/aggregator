@@ -1,0 +1,27 @@
+{
+	"subscriptions": [
+		{
+			"doctype": "xml",
+			"url": "https://www.example.org/rss.aspx",
+			"xpaths": [
+				{
+					"last_match": "http://example.org/42/",
+					"links": "//item/link/text()",
+					"titles": "//item/title/text()"
+				}
+			]
+		},
+		{
+			"doctype": "html",
+			"ssl": false,
+			"url": "https://example.com/",
+			"xpaths": [
+				{
+					"last_match": "/path.aspx?Id=666",
+					"links": "//div[contains(@class, \"list-group\")]/a/@href",
+					"titles": "//div[contains(@class, \"list-group\")]/a/text()"
+				}
+			]
+		}
+	]
+}
