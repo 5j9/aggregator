@@ -44,8 +44,12 @@ async def check(sub):
         for link, title in zip(xp(links_xp), xp(titles_xp)):
             if link == last_match:
                 break
+
             if link[0] == '/':  # relative link
                 url = main_url + link
+            else:
+                url = link
+
             title = title.strip().translate(slug_table)
             with open(inbox / f'{title}.URL', 'w', encoding='utf8') as f:
                 f.write(url_format(url=url))
