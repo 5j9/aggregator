@@ -38,24 +38,27 @@ async def check(sub):
     for xpath in sub['xpaths']:
         links_xp = xpath['links']
         titles_xp = xpath['titles']
+
         last_match = xpath.get('last_match')
+        last_match = set(last_match) if last_match is not None else ()
+
         found_new_link = False
 
-        for link, title in zip(xp(links_xp), xp(titles_xp)):
-            if link == last_match:
-                break
+        links = xp(links_xp)
 
-            if link[0] == '/':  # relative link
-                url = main_url + link
-            else:
-                url = link
+        # convert relative links to absolute
+        urls = [main_url + link if link[0] == '/' else link for link in links]
+
+        for url, title in zip(urls, xp(titles_xp)):
+            if url in last_match:
+                break
 
             title = title.strip().translate(slug_table)
             with open(inbox / f'{title}.URL', 'w', encoding='utf8') as f:
                 f.write(url_format(url=url))
 
             if found_new_link is False:
-                xpath['last_match'] = link
+                xpath['last_match'] = urls
                 found_new_link = True
         else:
             if found_new_link is False:
