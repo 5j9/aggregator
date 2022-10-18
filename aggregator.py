@@ -1,3 +1,4 @@
+import sys
 from json import loads, dumps
 from functools import partial
 from asyncio import run, gather
@@ -90,3 +91,13 @@ if inbox.files():
     import webbrowser
 
     webbrowser.open(inbox)
+
+
+def show_exception_and_confirm_exit(exc_type, exc_value, tb):
+    import traceback
+    traceback.print_exception(exc_type, exc_value, tb)
+    input("Press enter to exit.")
+    raise SystemExit
+
+
+sys.excepthook = show_exception_and_confirm_exit
