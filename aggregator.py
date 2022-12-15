@@ -1,9 +1,9 @@
 import sys
 from json import loads, dumps
 from functools import partial
-from asyncio import run, gather
+from asyncio import run, gather, TimeoutError
 
-from aiohttp import ClientSession
+from aiohttp import ClientSession, ClientTimeout
 from aiohttp.client_exceptions import ClientConnectorError
 from lxml import etree
 from path import Path
@@ -30,10 +30,14 @@ with config_path.open('r', encoding='utf8') as f:
 
 async def check(sub):
     main_url = sub['url'].rstrip('/')
+
     try:
         response = await client.get(main_url, ssl=sub.get('ssl'))
     except ClientConnectorError:
         input(f'ClientConnectorError on {main_url}.\nPress enter to continue.')
+        return
+    except TimeoutError:
+        input(f'TimeoutError on {main_url}.\nPress enter to continue.')
         return
 
     content = await response.read()
@@ -76,7 +80,7 @@ async def check(sub):
 async def check_all():
     # noinspection PyGlobalUndefined
     global client
-    async with ClientSession() as client:
+    async with ClientSession(timeout=ClientTimeout(10)) as client:
         await gather(*[check(sub) for sub in config['subscriptions']])
 
 
