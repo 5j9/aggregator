@@ -4,6 +4,7 @@ from functools import partial
 from asyncio import run, gather
 
 from aiohttp import ClientSession
+from aiohttp.client_exceptions import ClientConnectorError
 from lxml import etree
 from path import Path
 
@@ -29,7 +30,13 @@ with config_path.open('r', encoding='utf8') as f:
 
 async def check(sub):
     main_url = sub['url'].rstrip('/')
-    content = await (await client.get(main_url, ssl=sub.get('ssl'))).read()
+    try:
+        response = await client.get(main_url, ssl=sub.get('ssl'))
+    except ClientConnectorError:
+        input(f'ClientConnectorError on {main_url}.\nPress enter to continue.')
+        return
+
+    content = await response.read()
 
     if sub['doctype'] == 'xml':
         xp = parse_xml(content).xpath
