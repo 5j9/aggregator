@@ -23,9 +23,27 @@ url_format = """\
 URL={url}
 """.format
 
-config_path = project / 'config.json'
-with config_path.open('r', encoding='utf8') as f:
-    config = loads(f.read())
+
+def load_json(path: Path):
+    with path.open('r', encoding='utf8') as f:
+        return loads(f.read())
+
+
+def save_json(path: Path, data: dict):
+    with path.open('w', encoding='utf8') as f:
+        f.write(
+            dumps(
+                data,
+                ensure_ascii=False,
+                check_circular=False,
+                sort_keys=True,
+                indent='\t',
+            )
+        )
+
+
+CONFIG_PATH = project / 'config.json'
+CONFIG = load_json(CONFIG_PATH)
 
 
 async def check(sub):
@@ -81,22 +99,13 @@ async def check_all():
     # noinspection PyGlobalUndefined
     global client
     async with ClientSession(timeout=ClientTimeout(10)) as client:
-        await gather(*[check(sub) for sub in config['subscriptions']])
+        await gather(*[check(sub) for sub in CONFIG['subscriptions']])
 
 
 run(check_all())
 
 
-with config_path.open('w', encoding='utf8') as f:
-    f.write(
-        dumps(
-            config,
-            ensure_ascii=False,
-            check_circular=False,
-            sort_keys=True,
-            indent='\t',
-        )
-    )
+save_json(CONFIG_PATH, CONFIG)
 
 if inbox.files():
     import webbrowser
