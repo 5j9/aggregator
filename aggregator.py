@@ -45,9 +45,12 @@ def save_json(path: Path, data: dict):
 CONFIG_PATH = project / 'config.json'
 CONFIG = load_json(CONFIG_PATH)
 
+LAST_CHECK_RESULTS_PATH = project / 'last_check_results.json'
+LAST_CHECK_RESULTS = load_json(LAST_CHECK_RESULTS_PATH)
+
 
 async def check(sub):
-    main_url = sub['url'].rstrip('/')
+    main_url = sub['url'].rstrip('/') + '/'
 
     try:
         response = await client.get(main_url, ssl=sub.get('ssl'))
@@ -69,8 +72,12 @@ async def check(sub):
         links_xp = xpath['links']
         titles_xp = xpath['titles']
 
-        last_match = xpath.get('last_match')
-        last_match = set(last_match) if last_match is not None else ()
+        try:
+            checked_links = LAST_CHECK_RESULTS[main_url]
+        except KeyError:
+            checked_links = ()
+        else:
+            checked_links = set(checked_links)
 
         found_new_link = False
 
@@ -80,7 +87,7 @@ async def check(sub):
         urls = [main_url + link if link[0] == '/' else link for link in links]
 
         for url, title in zip(urls, xp(titles_xp)):
-            if url in last_match:
+            if url in checked_links:
                 break
 
             title = title.strip().translate(slug_table)
@@ -88,7 +95,7 @@ async def check(sub):
                 f.write(url_format(url=url))
 
             if found_new_link is False:
-                xpath['last_match'] = urls
+                LAST_CHECK_RESULTS[main_url] = urls
                 found_new_link = True
         else:
             if found_new_link is False:
@@ -105,7 +112,9 @@ async def check_all():
 run(check_all())
 
 
-save_json(CONFIG_PATH, CONFIG)
+# save_json(CONFIG_PATH, CONFIG)
+save_json(LAST_CHECK_RESULTS_PATH, LAST_CHECK_RESULTS)
+
 
 if inbox.files():
     import webbrowser
