@@ -59,9 +59,18 @@ def save_json(path: Path, data: dict):
         )
 
 
+def writefile(path: Path, content: str):
+    try:
+        with path.open('w', encoding='utf8') as f:
+            f.write(content)
+    except FileNotFoundError:
+        path.parent.makedirs_p()
+        writefile(path, content)
+
+
 async def check(sub):
     main_url: str = sub['url']
-    directory = main_url.partition('://')[2].partition('/')[0].translate(SLUG)
+    directory = INBOX / main_url.partition('://')[2].partition('/')[0].translate(SLUG)
 
     try:
         response = await CLIENT.get(main_url, ssl=sub.get('ssl'))
@@ -102,8 +111,7 @@ async def check(sub):
                 break
 
             title = title.strip().translate(SLUG)
-            with open(INBOX / f'{directory}/{title}.URL', 'w', encoding='utf8') as f:
-                f.write(URL_FORMAT(url=url))
+            writefile(directory / f'{title}.URL', URL_FORMAT(url=url))
 
             if found_new_link is False:
                 LAST_CHECK_RESULTS[main_url] = urls
