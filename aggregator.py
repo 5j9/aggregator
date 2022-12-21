@@ -68,20 +68,31 @@ def writefile(path: Path, content: str):
         writefile(path, content)
 
 
+async def get_text(url, ssl):
+    try:
+        response = await CLIENT.get(url, ssl=ssl)
+    except ClientConnectorError:
+        input(f'ClientConnectorError on {url}.\nPress enter to continue.')
+        return
+    except TimeoutError:
+        input(f'TimeoutError on {url}.\nPress enter to continue.')
+        return
+
+    return await response.text()
+
+
+def get_checked_links(url):
+    try:
+        return set(LAST_CHECK_RESULTS[url])
+    except KeyError:
+        return ()
+
+
 async def check(sub):
     main_url: str = sub['url']
     directory = INBOX / main_url.partition('://')[2].partition('/')[0].translate(SLUG)
 
-    try:
-        response = await CLIENT.get(main_url, ssl=sub.get('ssl'))
-    except ClientConnectorError:
-        input(f'ClientConnectorError on {main_url}.\nPress enter to continue.')
-        return
-    except TimeoutError:
-        input(f'TimeoutError on {main_url}.\nPress enter to continue.')
-        return
-
-    text = await response.text()
+    text = await get_text(main_url, sub.get('ssl'))
 
     if sub['doctype'] == 'xml':
         xp = parse_xml(text).xpath
@@ -92,19 +103,12 @@ async def check(sub):
         links_xp = xpath['links']
         titles_xp = xpath['titles']
 
-        try:
-            checked_links = LAST_CHECK_RESULTS[main_url]
-        except KeyError:
-            checked_links = ()
-        else:
-            checked_links = set(checked_links)
-
         found_new_link = False
-
         links = xp(links_xp)
 
         # convert relative links to absolute
         urls = [urljoin(main_url, link) for link in links]
+        checked_links = get_checked_links(main_url)
 
         for url, title in zip(urls, xp(titles_xp)):
             if url in checked_links:
