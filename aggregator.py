@@ -81,12 +81,12 @@ async def check(sub):
         input(f'TimeoutError on {main_url}.\nPress enter to continue.')
         return
 
-    content = await response.read()
+    text = await response.text()
 
     if sub['doctype'] == 'xml':
-        xp = parse_xml(content).xpath
+        xp = parse_xml(text).xpath
     else:
-        xp = parse_html(content).xpath
+        xp = parse_html(text).xpath
 
     for xpath in sub['xpaths']:
         links_xp = xpath['links']
