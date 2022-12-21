@@ -2,6 +2,7 @@ import sys
 from json import loads, dumps
 from functools import partial
 from asyncio import run, gather, TimeoutError
+from urllib.parse import urljoin
 
 from aiohttp import ClientSession, ClientTimeout
 from aiohttp.client_exceptions import ClientConnectorError
@@ -59,8 +60,8 @@ def save_json(path: Path, data: dict):
 
 
 async def check(sub):
-    main_url: str = sub['url'].rstrip('/') + '/'
-    directory = main_url.translate(SLUG)
+    main_url: str = sub['url']
+    directory = main_url.partition('://')[2].partition('/')[0].translate(SLUG)
 
     try:
         response = await CLIENT.get(main_url, ssl=sub.get('ssl'))
@@ -94,7 +95,7 @@ async def check(sub):
         links = xp(links_xp)
 
         # convert relative links to absolute
-        urls = [main_url + link if link[0] == '/' else link for link in links]
+        urls = [urljoin(main_url, link) for link in links]
 
         for url, title in zip(urls, xp(titles_xp)):
             if url in checked_links:
