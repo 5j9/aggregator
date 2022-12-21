@@ -9,16 +9,26 @@ from lxml import etree
 from path import Path
 
 
-slug_table = str.maketrans(r'\/:*?"<>|', '-' * 9)
+def show_exception_and_confirm_exit(exc_type, exc_value, tb):
+    import traceback
+    traceback.print_exception(exc_type, exc_value, tb)
+    input("Press enter to exit.")
+    raise SystemExit
 
-project = Path(__file__).parent
-inbox = project / 'inbox'
+
+sys.excepthook = show_exception_and_confirm_exit
+
+
+SLUG = str.maketrans(r'\/:*?"<>|', '-' * 9)
+
+PROJECT = Path(__file__).parent
+INBOX = PROJECT / 'inbox'
 
 parse_html = partial(etree.fromstring, parser=etree.HTMLParser())
 parse_xml = etree.fromstring
 
 
-url_format = """\
+URL_FORMAT = """\
 [InternetShortcut]
 URL={url}
 """.format
@@ -27,6 +37,12 @@ URL={url}
 def load_json(path: Path):
     with path.open('r', encoding='utf8') as f:
         return loads(f.read())
+
+
+LAST_CHECK_RESULTS_PATH = PROJECT / 'last_check_results.json'
+LAST_CHECK_RESULTS = load_json(LAST_CHECK_RESULTS_PATH)
+CONFIG_PATH = PROJECT / 'config.json'
+CONFIG = load_json(CONFIG_PATH)
 
 
 def save_json(path: Path, data: dict):
@@ -42,18 +58,12 @@ def save_json(path: Path, data: dict):
         )
 
 
-CONFIG_PATH = project / 'config.json'
-CONFIG = load_json(CONFIG_PATH)
-
-LAST_CHECK_RESULTS_PATH = project / 'last_check_results.json'
-LAST_CHECK_RESULTS = load_json(LAST_CHECK_RESULTS_PATH)
-
-
 async def check(sub):
-    main_url = sub['url'].rstrip('/') + '/'
+    main_url: str = sub['url'].rstrip('/') + '/'
+    directory = main_url.translate(SLUG)
 
     try:
-        response = await client.get(main_url, ssl=sub.get('ssl'))
+        response = await CLIENT.get(main_url, ssl=sub.get('ssl'))
     except ClientConnectorError:
         input(f'ClientConnectorError on {main_url}.\nPress enter to continue.')
         return
@@ -90,9 +100,9 @@ async def check(sub):
             if url in checked_links:
                 break
 
-            title = title.strip().translate(slug_table)
-            with open(inbox / f'{title}.URL', 'w', encoding='utf8') as f:
-                f.write(url_format(url=url))
+            title = title.strip().translate(SLUG)
+            with open(INBOX / f'{directory}/{title}.URL', 'w', encoding='utf8') as f:
+                f.write(URL_FORMAT(url=url))
 
             if found_new_link is False:
                 LAST_CHECK_RESULTS[main_url] = urls
@@ -104,9 +114,24 @@ async def check(sub):
 
 async def check_all():
     # noinspection PyGlobalUndefined
-    global client
-    async with ClientSession(timeout=ClientTimeout(10)) as client:
+    global CLIENT
+    async with ClientSession(timeout=ClientTimeout(10)) as CLIENT:
         await gather(*[check(sub) for sub in CONFIG['subscriptions']])
+
+
+def open_inbox():
+    directories = INBOX.dirs()
+    if not directories:
+        return
+
+    import webbrowser
+
+    if len(directories) == 1:
+        webbrowser.open(directories[0])
+        return
+
+    # more than one directory in INBOX
+    webbrowser.open(INBOX)
 
 
 run(check_all())
@@ -115,18 +140,4 @@ run(check_all())
 # save_json(CONFIG_PATH, CONFIG)
 save_json(LAST_CHECK_RESULTS_PATH, LAST_CHECK_RESULTS)
 
-
-if inbox.files():
-    import webbrowser
-
-    webbrowser.open(inbox)
-
-
-def show_exception_and_confirm_exit(exc_type, exc_value, tb):
-    import traceback
-    traceback.print_exception(exc_type, exc_value, tb)
-    input("Press enter to exit.")
-    raise SystemExit
-
-
-sys.excepthook = show_exception_and_confirm_exit
+open_inbox()
