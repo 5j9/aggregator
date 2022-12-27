@@ -17,22 +17,22 @@ def show_exception_and_confirm_exit(exc_type, exc_value, tb):
     raise SystemExit
 
 
+def to_html(href_texts: list[tuple[str, str]]) -> str:
+    return '<ol>' + '\n'.join([
+        f'<li><a href="{href}">{text}</a></li>' for href, text in href_texts
+    ]) + '</ol>'
+
+
 sys.excepthook = show_exception_and_confirm_exit
 
 
-SLUG = str.maketrans(r'\/:*?"<>|', '-' * 9)
+# SLUG = str.maketrans(r'\/:*?"<>|', '-' * 9)
 
 PROJECT = Path(__file__).parent
 INBOX = PROJECT / 'inbox'
 
 parse_html = partial(etree.fromstring, parser=etree.HTMLParser())
 parse_xml = etree.fromstring
-
-
-URL_FORMAT = """\
-[InternetShortcut]
-URL={url}
-""".format
 
 
 def load_json(path: Path):
@@ -61,7 +61,7 @@ def save_json(path: Path, data: dict):
 
 def writefile(path: Path, content: str):
     try:
-        with path.open('w', encoding='utf8') as f:
+        with path.open('x', encoding='utf8') as f:
             f.write(content)
     except FileNotFoundError:
         path.parent.makedirs_p()
@@ -90,9 +90,10 @@ def get_checked_links(url):
 
 async def check(sub):
     main_url: str = sub['url']
-    directory = INBOX / main_url.partition('://')[2].partition('/')[0].translate(SLUG)
 
     text = await get_text(main_url, sub.get('ssl'))
+    if text is None:
+        return
 
     if sub['doctype'] == 'xml':
         xp = parse_xml(text).xpath
@@ -103,27 +104,31 @@ async def check(sub):
         links_xp = xpath['links']
         titles_xp = xpath['titles']
 
-        found_new_link = False
         links = xp(links_xp)
+        if not links:
+            print(f'no match: {main_url=} {links_xp=}')
 
         # convert relative links to absolute
         urls = [urljoin(main_url, link) for link in links]
         checked_links = get_checked_links(main_url)
 
+        new_links: list[tuple[str, str]] = []
+
         for url, title in zip(urls, xp(titles_xp)):
             if url in checked_links:
                 break
+            new_links.append((url, title.strip()))
 
-            title = title.strip().translate(SLUG)
-            writefile(directory / f'{title}.URL', URL_FORMAT(url=url))
+        if not new_links:
+            return
 
-            if found_new_link is False:
-                LAST_CHECK_RESULTS[main_url] = urls
-                found_new_link = True
-        else:
-            if found_new_link is False:
-                print(f'no match: {main_url=} {links_xp=}')
+        domain = main_url.partition('://')[2].partition('/')[0]
+        writefile(
+            INBOX / domain + '.html',
+            to_html(new_links)
+        )
 
+        LAST_CHECK_RESULTS[main_url] = urls
 
 async def check_all():
     # noinspection PyGlobalUndefined
@@ -133,14 +138,14 @@ async def check_all():
 
 
 def open_inbox():
-    directories = INBOX.dirs()
-    if not directories:
+    files = INBOX.files()
+    if not files:
         return
 
     import webbrowser
 
-    if len(directories) == 1:
-        webbrowser.open(directories[0])
+    if len(files) == 1:
+        webbrowser.open(files[0])
         return
 
     # more than one directory in INBOX
