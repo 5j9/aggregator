@@ -130,6 +130,7 @@ async def check(sub):
 
         LAST_CHECK_RESULTS[main_url] = urls
 
+
 async def check_all():
     # noinspection PyGlobalUndefined
     global CLIENT
@@ -143,10 +144,6 @@ def open_inbox():
         return
 
     import webbrowser
-
-    if len(files) == 1:
-        webbrowser.open(files[0])
-        return
 
     # more than one directory in INBOX
     webbrowser.open(INBOX)
