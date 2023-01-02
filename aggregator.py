@@ -59,13 +59,19 @@ def save_json(path: Path, data: dict):
         )
 
 
-def writefile(path: Path, content: str):
+def writefile(domain: str, content: str):
+    path = INBOX / domain + '.html'
     try:
         with path.open('x', encoding='utf8') as f:
             f.write(content)
+    except FileExistsError:
+        # todo: this could get stuck in an infinite loop
+        if domain[-1].isdigit():
+            domain = domain[:-1] + str(int(domain[-1]) + 1)
+        writefile(domain, content)
     except FileNotFoundError:
         path.parent.makedirs_p()
-        writefile(path, content)
+        writefile(domain, content)
 
 
 async def get_text(url, ssl):
@@ -123,10 +129,7 @@ async def check(sub):
             return
 
         domain = main_url.partition('://')[2].partition('/')[0]
-        writefile(
-            INBOX / domain + '.html',
-            to_html(new_links)
-        )
+        writefile(domain, to_html(new_links))
 
         LAST_CHECK_RESULTS[main_url] = urls
 
