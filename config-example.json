@@ -3,23 +3,19 @@
 		{
 			"doctype": "xml",
 			"url": "https://www.example.org/rss.aspx",
-			"xpaths": [
-				{
-					"links": "//item/link/text()",
-					"titles": "//item/title/text()"
-				}
-			]
+			"xpaths": {
+				"links": "//item/link/text()",
+				"titles": "//item/title/text()"
+			}
 		},
 		{
 			"doctype": "html",
 			"ssl": false,
 			"url": "https://example.com/",
-			"xpaths": [
-				{
-					"links": "//div[contains(@class, \"list-group\")]/a/@href",
-					"titles": "//div[contains(@class, \"list-group\")]/a/text()"
-				}
-			]
+			"xpaths": {
+				"links": "//div[contains(@class, \"list-group\")]/a/@href",
+				"titles": "//div[contains(@class, \"list-group\")]/a/text()"
+			}
 		}
 	]
 }
