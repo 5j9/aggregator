@@ -1,6 +1,6 @@
 from aiohttp import web, WSMsgType
 
-from aggregator import logger, check_all, LAST_CHECK_RESULTS
+from collector import logger, check_all, LAST_CHECK_RESULTS
 
 
 async def htmx(request):
