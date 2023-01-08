@@ -95,21 +95,6 @@ def save_json(path: Path, data: dict):
 register(save_json, LAST_CHECK_RESULTS_PATH, LAST_CHECK_RESULTS)
 
 
-def writefile(domain: str, content: str):
-    path = INBOX / domain + '.html'
-    try:
-        with path.open('x', encoding='utf8') as f:
-            f.write(content)
-    except FileExistsError:
-        # todo: this could get stuck in an infinite loop
-        if domain[-1].isdigit():
-            domain = domain[:-1] + str(int(domain[-1]) + 1)
-        writefile(domain, content)
-    except FileNotFoundError:
-        path.parent.makedirs_p()
-        writefile(domain, content)
-
-
 async def get_text(url, ssl):
     try:
         response = await CLIENT.get(url, ssl=ssl)
