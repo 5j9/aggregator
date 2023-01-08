@@ -2,7 +2,7 @@ import sys
 from json import loads, dumps
 from functools import partial
 from asyncio import gather, TimeoutError
-from urllib.parse import urljoin
+from urllib.parse import urljoin, quote_plus
 from atexit import register
 
 from aiohttp import ClientSession, ClientTimeout
@@ -40,13 +40,19 @@ item_template = """\
 <div class="item">
     <a href="{url}">{title}</a>
     <div class='main_url'>{main_url}</div>
-    <button hx-get="/mark_as_read?main_url={main_url}&url={url}" hx-swap="delete" hx-target="closest .item">mark as read</button>
+    <button hx-get="/mark_as_read?main_url={qmain_url}&url={qurl}" hx-swap="delete" hx-target="closest .item">mark as read</button>
 </div>
 """
 
 
 def create_item(url: str, title: str, main_url: str) -> str:
-    return item_template.format(url=url, title=title, main_url=main_url)
+    return item_template.format(
+        url=url,
+        qurl=quote_plus(url),
+        main_url=main_url,
+        qmain_url=quote_plus(main_url),
+        title=title
+    )
 
 
 sys.excepthook = show_exception_and_confirm_exit
