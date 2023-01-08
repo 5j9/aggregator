@@ -166,4 +166,4 @@ async def check_all():
     global CLIENT
     async with ClientSession(timeout=ClientTimeout(10)) as CLIENT:
         results = await gather(*[check(sub) for sub in CONFIG['subscriptions']])
-    return [items for r in results for items in r if r is not None]
+    return [item for items in results if items is not None for item in items]
