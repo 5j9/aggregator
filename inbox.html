@@ -3,14 +3,19 @@
 <head>
 	<link rel="icon" href="data:,">
 	<script src="/htmx"></script>
+	<script src="/htmx_ws"></script>
 </head>
 
 <body>
+
 <div id="toolbar">
 </div>
+
 <div id="leftpane">
 </div>
-<div id="items">
+
+<div id="items" hx-ext="ws" ws-connect="/items">
 </div>
+
 </body>
 </html>

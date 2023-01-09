@@ -1,7 +1,7 @@
 import sys
 from json import loads, dumps
 from functools import partial
-from asyncio import gather, TimeoutError
+from asyncio import as_completed, TimeoutError
 from urllib.parse import urljoin, quote_plus
 from atexit import register
 
@@ -165,5 +165,7 @@ async def check_all():
     # noinspection PyGlobalUndefined
     global CLIENT
     async with ClientSession(timeout=ClientTimeout(10)) as CLIENT:
-        results = await gather(*[check(sub) for sub in CONFIG['subscriptions']])
-    return [item for items in results if items is not None for item in items]
+        for c in as_completed([check(sub) for sub in CONFIG['subscriptions']]):
+            items = await c
+            if items is not None:
+                yield items

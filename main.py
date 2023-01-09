@@ -1,25 +1,39 @@
-from aiohttp import web, WSMsgType
+from aiohttp import web
 
 from collector import logger, check_all, LAST_CHECK_RESULTS
 
 
 async def htmx(request):
-    with open('htmx.min-1.8.4.js') as f:
-        text = f.read()
-    return web.Response(text=text, content_type='text/javascript')
+    logger.debug('htmx')
+    return web.FileResponse('htmx.min-1.8.4.js')
 
 
-async def root(request):
-    with open('inbox.html') as f:
-        inbox = f.read()
-    items = await check_all()
-    if items:
+async def htmx_ws(request):
+    logger.debug('htmx_ws')
+    return web.FileResponse('htmx-ws-1.8.4.js')
+
+
+async def items(request):
+    logger.debug('items')
+
+    ws = web.WebSocketResponse()
+    await ws.prepare(request)
+
+    async for items in check_all():
         items_html = '\n'.join(items)
-    else:
-        items_html = 'Everything read!'
+        s = f'<div id="items" hx-swap-oob="beforeend">{items_html}<div>'
+        await ws.send_str(s)
 
-    inbox = inbox.replace('<div id="items">', '<div id="items">' + items_html)
-    return web.Response(text=inbox, content_type='text/html')
+    await ws.send_str(f'<div id="items" hx-swap-oob="beforeend">All items checked.<div>')
+    async for msg in ws:
+        ...  # todo
+
+    return ws
+
+
+async def inbox(request):
+    logger.debug('inbox')
+    return web.FileResponse('inbox.html')
 
 
 async def mark_as_read(request):
@@ -32,7 +46,9 @@ async def mark_as_read(request):
 app = web.Application()
 app.add_routes([
     web.get('/htmx', htmx),
-    web.get('/', root),
+    web.get('/htmx_ws', htmx_ws),
+    web.get('/items', items),
+    web.get('/', inbox),
     web.get('/mark_as_read', mark_as_read),
 ])
 
