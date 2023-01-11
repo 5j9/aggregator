@@ -3,7 +3,6 @@ from json import loads, dumps
 from functools import partial
 from asyncio import as_completed, TimeoutError
 from urllib.parse import urljoin, quote_plus
-from atexit import register
 
 from aiohttp import ClientSession, ClientTimeout
 from aiohttp.client_exceptions import ClientConnectorError
@@ -90,9 +89,6 @@ def save_json(path: Path, data: dict):
                 indent='\t',
             )
         )
-
-
-register(save_json, LAST_CHECK_RESULTS_PATH, LAST_CHECK_RESULTS)
 
 
 async def get_text(url, ssl):

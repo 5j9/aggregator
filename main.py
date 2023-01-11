@@ -1,6 +1,7 @@
 from aiohttp import web
 
-from collector import logger, check_all, LAST_CHECK_RESULTS
+from collector import LAST_CHECK_RESULTS_PATH, logger, check_all, \
+    LAST_CHECK_RESULTS, save_json
 
 
 async def htmx(request):
@@ -40,6 +41,7 @@ async def mark_as_read(request):
     q = request.query
     logger.debug('marking %s as read', q['url'])
     LAST_CHECK_RESULTS[q['main_url']][q['url']] = True
+    save_json(LAST_CHECK_RESULTS_PATH, LAST_CHECK_RESULTS)
     return web.Response(text='', content_type='text/html')
 
 
