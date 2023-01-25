@@ -1,12 +1,11 @@
 import sys
 from json import loads, dumps
 from functools import partial
-from asyncio import as_completed, TimeoutError
+from asyncio import as_completed
 from urllib.parse import urljoin, quote_plus
 
 from aiohttp import ClientSession, ClientTimeout
-from aiohttp.client_exceptions import ClientConnectorError
-from lxml import etree
+from lxml.etree import fromstring, HTMLParser
 from path import Path
 
 
@@ -62,13 +61,21 @@ sys.excepthook = show_exception_and_confirm_exit
 PROJECT = Path(__file__).parent
 INBOX = PROJECT / 'inbox'
 
-parse_html = partial(etree.fromstring, parser=etree.HTMLParser())
-parse_xml = etree.fromstring
+parse_html = partial(fromstring, parser=HTMLParser())
+parse_xml = fromstring
 
 
 def load_json(path: Path):
     with path.open('r', encoding='utf8') as f:
         return loads(f.read())
+
+
+def clean_up_last_check_results():
+    subs_urls = {sub['url'] for sub in CONFIG['subscriptions']}
+    unsubscribed_urls = LAST_CHECK_RESULTS.keys() - subs_urls
+    logger.info('found %s unsubscribed urls in %s: %s', len(unsubscribed_urls), LAST_CHECK_RESULTS_PATH, unsubscribed_urls)
+    for unsubscribed in unsubscribed_urls:
+        del LAST_CHECK_RESULTS[unsubscribed]
 
 
 LAST_CHECK_RESULTS_PATH = PROJECT / 'last_check_results.json'
@@ -77,6 +84,7 @@ LAST_CHECK_RESULTS = load_json(LAST_CHECK_RESULTS_PATH)
 CONFIG_PATH = PROJECT / 'config.json'
 CONFIG = load_json(CONFIG_PATH)
 
+clean_up_last_check_results()
 
 def save_json(path: Path, data: dict):
     with path.open('w', encoding='utf8') as f:
@@ -91,17 +99,13 @@ def save_json(path: Path, data: dict):
         )
 
 
-async def get_text(url, ssl):
+async def read(url, ssl):
     try:
         response = await CLIENT.get(url, ssl=ssl)
-    except ClientConnectorError:
-        logger.warning(f'ClientConnectorError on {url}.')
+        return await response.read()
+    except Exception as e:
+        logger.error('%s on %s', e, url)
         return
-    except TimeoutError:
-        logger.warning(f'TimeoutError on {url}.')
-        return
-
-    return await response.text()
 
 
 def get_checked_links(url):
@@ -115,15 +119,19 @@ async def check(sub):
     main_url: str = sub['url']
     logger.debug('checking %s', main_url)
 
-    text = await get_text(main_url, sub.get('ssl'))
-    if text is None:
-        logger.error('text is None for %s', main_url)
+    body = await read(main_url, sub.get('ssl'))
+    if body is None:
+        # logger.error('text is None for %s', main_url)
         return
 
     if sub['doctype'] == 'xml':
-        xp = parse_xml(text).xpath
+        try:
+            xp = parse_xml(body).xpath
+        except Exception as e:
+            logger.error('%s on %s', e, main_url)
+            return
     else:
-        xp = parse_html(text).xpath
+        xp = parse_html(body).xpath
 
     last_checked = LAST_CHECK_RESULTS.setdefault(main_url, {})
 
