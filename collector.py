@@ -61,7 +61,7 @@ sys.excepthook = show_exception_and_confirm_exit
 PROJECT = Path(__file__).parent
 INBOX = PROJECT / 'inbox'
 
-parse_html = partial(fromstring, parser=HTMLParser())
+parse_html = partial(fromstring, parser=HTMLParser(encoding='utf8'))
 parse_xml = fromstring
 
 
