@@ -117,7 +117,6 @@ def get_checked_links(url):
 
 async def check(sub):
     main_url: str = sub['url']
-    logger.debug('checking %s', main_url)
 
     body = await read(main_url, sub.get('ssl'))
     if body is None:
