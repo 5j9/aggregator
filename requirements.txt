@@ -1,3 +1,4 @@
 aiohttp
 path
 lxml
+cssselect

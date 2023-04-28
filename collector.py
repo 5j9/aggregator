@@ -73,6 +73,8 @@ def load_json(path: Path):
 def clean_up_last_check_results():
     subs_urls = {sub['url'] for sub in CONFIG['subscriptions']}
     unsubscribed_urls = LAST_CHECK_RESULTS.keys() - subs_urls
+    if not unsubscribed_urls:
+        return
     logger.info('found %s unsubscribed urls in %s: %s', len(unsubscribed_urls), LAST_CHECK_RESULTS_PATH, unsubscribed_urls)
     for unsubscribed in unsubscribed_urls:
         del LAST_CHECK_RESULTS[unsubscribed]
@@ -104,7 +106,7 @@ async def read(url, ssl):
         response = await CLIENT.get(url, ssl=ssl)
         return await response.read()
     except Exception as e:
-        logger.error('%s on %s', e, url)
+        logger.exception('%s on %s', e, url)
         return
 
 
@@ -115,6 +117,12 @@ def get_checked_links(url):
         return ()
 
 
+def parse(doctype, body):
+    if doctype == 'xml':
+        return parse_xml(body)
+    return parse_html(body)
+
+
 async def check(sub):
     main_url: str = sub['url']
 
@@ -123,26 +131,24 @@ async def check(sub):
         # logger.error('text is None for %s', main_url)
         return
 
-    if sub['doctype'] == 'xml':
-        try:
-            xp = parse_xml(body).xpath
-        except Exception as e:
-            logger.error('%s on %s', e, main_url)
-            return
-    else:
-        xp = parse_html(body).xpath
+    namespace = globals() | locals()
+    try:
+        exec('\n'.join(sub['selector_lines']), namespace)
+    except Exception as e:
+        logger.error('%s on %s', e, sub['url'])
+        return
+
+    links = namespace['links']
+    if not links:
+        logger.warning(f'no links match on {main_url=}')
+        return
+
+    titles = namespace['titles']
+    if len(links) != len(titles):
+        logger.error(f'len(links) != len(titles) on {main_url=}')
+        return
 
     last_checked = LAST_CHECK_RESULTS.setdefault(main_url, {})
-
-    xpath = sub['xpaths']
-    links_xp = xpath['links']
-    titles_xp = xpath['titles']
-
-    links = xp(links_xp)
-
-    if not links:
-        logger.warning(f'no match: {main_url=} {links_xp=}')
-        return
 
     # convert relative links to absolute
     urls = {urljoin(main_url, link): False for link in links}
@@ -152,7 +158,7 @@ async def check(sub):
         del last_checked[k]
 
     items = []
-    for url, title in zip(urls, xp(titles_xp)):
+    for url, title in zip(urls, titles):
         if last_checked.setdefault(url, False):
             break
         items.append(create_item(url, title.strip(), main_url))
@@ -167,7 +173,7 @@ async def check(sub):
 async def check_all():
     # noinspection PyGlobalUndefined
     global CLIENT
-    async with ClientSession(timeout=ClientTimeout(10)) as CLIENT:
+    async with ClientSession(timeout=ClientTimeout(30)) as CLIENT:
         for c in as_completed([check(sub) for sub in CONFIG['subscriptions']]):
             items = await c
             if items is not None:

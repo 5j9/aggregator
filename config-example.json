@@ -1,21 +1,32 @@
 {
 	"subscriptions": [
 		{
-			"doctype": "xml",
 			"url": "https://www.example.org/rss.aspx",
-			"xpaths": {
-				"links": "//item/link/text()",
-				"titles": "//item/title/text()"
-			}
+			"selector_lines": [
+				"# Any python statement is allowed.",
+				"# Just define links and titles.",
+				"# See collector.py for available functions.",
+				"parsed = parse('html', body)",
+				"rows = parsed.cssselect('tr')[1:]",
+				"links = []",
+				"titles = []",
+				"for row in rows:",
+				"    try:",
+				"        href = row.cssselect('td:last-child a')[0].attrib['href']",
+				"    except IndexError:",
+				"        continue",
+				"    links.append(href)",
+				"    titles.append(row.cssselect('.subdesc')[0].text)"
+			]
 		},
 		{
-			"doctype": "html",
 			"ssl": false,
 			"url": "https://example.com/",
-			"xpaths": {
-				"links": "//div[contains(@class, \"list-group\")]/a/@href",
-				"titles": "//div[contains(@class, \"list-group\")]/a/text()"
-			}
+			"selector_lines": [
+				"xpath = parse('xml', body).xpath",
+				"links = xpath('//item/link/text()')",
+				"titles = xpath('//item/title/text()')"
+			]
 		}
 	]
 }
