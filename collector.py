@@ -45,7 +45,7 @@ class Subscription:
 # import subscriptions to fill Subscription.__subclassess__
 import subscriptions  # noqa
 
-subs = Subscription.__subclasses__()
+SUBS = [s() for s in Subscription.__subclasses__()]
 
 
 def get_logger():
@@ -110,7 +110,7 @@ def load_json(path: Path):
 
 
 def clean_up_last_check_results():
-    subs_urls = {sub.url for sub in subs}
+    subs_urls = {sub.url for sub in SUBS}
     unsubscribed_urls = LAST_CHECK_RESULTS.keys() - subs_urls
     if not unsubscribed_urls:
         return
@@ -210,7 +210,7 @@ async def check_all():
     # noinspection PyGlobalUndefined
     global CLIENT
     async with ClientSession(timeout=ClientTimeout(30)) as CLIENT:
-        for c in as_completed([check(sub()) for sub in subs]):
+        for c in as_completed([check(sub) for sub in SUBS]):
             items = await c
             if items is not None:
                 yield items
