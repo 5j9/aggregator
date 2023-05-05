@@ -1,7 +1,12 @@
 from aiohttp import web
 
-from collector import LAST_CHECK_RESULTS_PATH, logger, check_all, \
-    LAST_CHECK_RESULTS, save_json
+from collector import (
+    LAST_CHECK_RESULTS,
+    LAST_CHECK_RESULTS_PATH,
+    check_all,
+    logger,
+    save_json,
+)
 
 
 async def htmx(request):

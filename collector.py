@@ -1,12 +1,12 @@
 import sys
-from json import loads, dumps
-from functools import partial
-from asyncio import as_completed
-from urllib.parse import urljoin, quote_plus
 from abc import abstractmethod
+from asyncio import as_completed
+from functools import partial
+from json import dumps, loads
+from urllib.parse import quote_plus, urljoin
 
 from aiohttp import ClientSession, ClientTimeout
-from lxml.etree import fromstring, HTMLParser
+from lxml.etree import HTMLParser, fromstring
 from path import Path
 
 
