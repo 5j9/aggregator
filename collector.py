@@ -3,10 +3,49 @@ from json import loads, dumps
 from functools import partial
 from asyncio import as_completed
 from urllib.parse import urljoin, quote_plus
+from abc import abstractmethod
 
 from aiohttp import ClientSession, ClientTimeout
 from lxml.etree import fromstring, HTMLParser
 from path import Path
+
+
+class Subscription:
+    url: str
+    ssl: bool = None
+    doctype = 'html'
+
+    @property
+    async def body(self):
+        body = await read(self.url, self.ssl)
+        if body is None:
+            logger.error('body is None for %s', self.url)
+            return
+        return body
+
+    @property
+    async def parsed(self):
+        body = await self.body
+        return parse(self.doctype, body)
+
+    @property
+    async def xpath(self, ):
+        return (await self.parsed).xpath
+
+    @property
+    async def cssselect(self, ):
+        return (await self.parsed).cssselect
+
+    @abstractmethod
+    async def select(self) -> None:
+        self.links = [...]
+        self.titles = [...]
+
+
+# import subscriptions to fill Subscription.__subclassess__
+import subscriptions  # noqa
+
+subs = Subscription.__subclasses__()
 
 
 def get_logger():
@@ -71,7 +110,7 @@ def load_json(path: Path):
 
 
 def clean_up_last_check_results():
-    subs_urls = {sub['url'] for sub in CONFIG['subscriptions']}
+    subs_urls = {sub.url for sub in subs}
     unsubscribed_urls = LAST_CHECK_RESULTS.keys() - subs_urls
     if not unsubscribed_urls:
         return
@@ -83,8 +122,6 @@ def clean_up_last_check_results():
 LAST_CHECK_RESULTS_PATH = PROJECT / 'last_check_results.json'
 LAST_CHECK_RESULTS = load_json(LAST_CHECK_RESULTS_PATH)
 
-CONFIG_PATH = PROJECT / 'config.json'
-CONFIG = load_json(CONFIG_PATH)
 
 clean_up_last_check_results()
 
@@ -123,27 +160,26 @@ def parse(doctype, body):
     return parse_html(body)
 
 
-async def check(sub):
-    main_url: str = sub['url']
+async def check(sub: Subscription):
+    main_url: str = sub.url
 
-    body = await read(main_url, sub.get('ssl'))
+    body = await read(main_url, sub.ssl)
     if body is None:
         # logger.error('text is None for %s', main_url)
         return
 
-    namespace = globals() | locals()
     try:
-        exec('\n'.join(sub['selector_lines']), namespace)
+        await sub.select()
     except Exception as e:
-        logger.error('%s on %s', e, sub['url'])
+        logger.error('%s on %s', e, main_url)
         return
 
-    links = namespace['links']
+    links = sub.links
     if not links:
         logger.warning(f'no links match on {main_url=}')
         return
 
-    titles = namespace['titles']
+    titles = sub.titles
     if len(links) != len(titles):
         logger.error(f'len(links) != len(titles) on {main_url=}')
         return
@@ -174,7 +210,7 @@ async def check_all():
     # noinspection PyGlobalUndefined
     global CLIENT
     async with ClientSession(timeout=ClientTimeout(30)) as CLIENT:
-        for c in as_completed([check(sub) for sub in CONFIG['subscriptions']]):
+        for c in as_completed([check(sub()) for sub in subs]):
             items = await c
             if items is not None:
                 yield items
