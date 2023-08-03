@@ -5,7 +5,8 @@ from functools import partial
 from json import dumps, loads
 from urllib.parse import quote_plus, urljoin
 
-from aiohttp import ClientSession, ClientTimeout
+from aiohttp import ClientTimeout
+from aiohutils.session import SessionManager
 from lxml.etree import HTMLParser, fromstring
 from path import Path
 
@@ -138,9 +139,11 @@ def save_json(path: Path, data: dict):
         )
 
 
+session_manager = SessionManager(timeout=ClientTimeout(30))
+
 async def read(url, ssl):
     try:
-        response = await CLIENT.get(url, ssl=ssl)
+        response = await session_manager.get(url, ssl=ssl)
         return await response.read()
     except Exception as e:
         logger.exception('%s on %s', e, url)
@@ -207,10 +210,7 @@ async def check(sub: Subscription):
 
 
 async def check_all():
-    # noinspection PyGlobalUndefined
-    global CLIENT
-    async with ClientSession(timeout=ClientTimeout(30)) as CLIENT:
-        for c in as_completed([check(sub) for sub in SUBS]):
-            items = await c
-            if items is not None:
-                yield items
+    for c in as_completed([check(sub) for sub in SUBS]):
+        items = await c
+        if items is not None:
+            yield items
