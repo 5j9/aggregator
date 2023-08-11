@@ -30,11 +30,15 @@ class Subscription:
         return parse(self.doctype, body)
 
     @property
-    async def xpath(self, ):
+    async def xpath(
+        self,
+    ):
         return (await self.parsed).xpath
 
     @property
-    async def cssselect(self, ):
+    async def cssselect(
+        self,
+    ):
         return (await self.parsed).cssselect
 
     @abstractmethod
@@ -51,6 +55,7 @@ SUBS = [s() for s in Subscription.__subclasses__()]
 
 def get_logger():
     import logging
+
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
     stream_handler = logging.StreamHandler()
@@ -68,6 +73,7 @@ logger = get_logger()
 
 def show_exception_and_confirm_exit(exc_type, exc_value, tb):
     import traceback
+
     traceback.print_exception(exc_type, exc_value, tb)
     input("Press enter to exit.")
     raise SystemExit
@@ -89,7 +95,7 @@ def create_item(url: str, title: str, main_url: str) -> str:
         qurl=quote_plus(url),
         main_url=main_url,
         qmain_url=quote_plus(main_url),
-        title=title
+        title=title,
     )
 
 
@@ -115,7 +121,12 @@ def clean_up_last_check_results():
     unsubscribed_urls = LAST_CHECK_RESULTS.keys() - subs_urls
     if not unsubscribed_urls:
         return
-    logger.info('found %s unsubscribed urls in %s: %s', len(unsubscribed_urls), LAST_CHECK_RESULTS_PATH, unsubscribed_urls)
+    logger.info(
+        'deleting %d unsubscribed urls from %s: %s',
+        len(unsubscribed_urls),
+        LAST_CHECK_RESULTS_PATH,
+        unsubscribed_urls,
+    )
     for unsubscribed in unsubscribed_urls:
         del LAST_CHECK_RESULTS[unsubscribed]
 
@@ -125,6 +136,7 @@ LAST_CHECK_RESULTS = load_json(LAST_CHECK_RESULTS_PATH)
 
 
 clean_up_last_check_results()
+
 
 def save_json(path: Path, data: dict):
     with path.open('w', encoding='utf8') as f:
@@ -140,6 +152,7 @@ def save_json(path: Path, data: dict):
 
 
 session_manager = SessionManager(timeout=ClientTimeout(30))
+
 
 async def read(url, ssl):
     try:
@@ -193,7 +206,7 @@ async def check(sub: Subscription):
     urls = {urljoin(main_url, link): False for link in links}
 
     # delete old urls that no longer exist
-    for k in (last_checked.keys() - urls.keys()):
+    for k in last_checked.keys() - urls.keys():
         del last_checked[k]
 
     items = []
