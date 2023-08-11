@@ -11,12 +11,12 @@ from collector import (
 
 async def htmx(request):
     logger.debug('htmx')
-    return web.FileResponse('htmx.min-1.8.4.js')
+    return web.FileResponse('htmx-1.9.4.js')
 
 
 async def htmx_ws(request):
     logger.debug('htmx_ws')
-    return web.FileResponse('htmx-ws-1.8.4.js')
+    return web.FileResponse('htmx-ws-1.9.4.js')
 
 
 async def items(request):
@@ -53,7 +53,6 @@ async def mark_as_read(request):
 app = web.Application()
 app.add_routes([
     web.get('/htmx', htmx),
-    web.get('/htmx_ws', htmx_ws),
     web.get('/items', items),
     web.get('/', inbox),
     web.get('/mark_as_read', mark_as_read),
