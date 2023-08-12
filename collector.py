@@ -159,7 +159,7 @@ async def read(url, ssl):
         response = await session_manager.get(url, ssl=ssl)
         return await response.read()
     except Exception as e:
-        logger.exception('%s on %s', e, url)
+        logger.error('%s on %s', e, url)
         return
 
 
