@@ -159,7 +159,7 @@ async def read(url, ssl):
         response = await session_manager.get(url, ssl=ssl)
         return await response.read()
     except Exception as e:
-        logger.error('%s on %s', e, url)
+        logger.error(f'{e!r} on {url}')
         return
 
 
@@ -187,7 +187,7 @@ async def check(sub: Subscription):
     try:
         await sub.select()
     except Exception as e:
-        logger.error('%s on %s', e, main_url)
+        logger.error(f'{e!r} on {main_url}')
         return
 
     links = sub.links

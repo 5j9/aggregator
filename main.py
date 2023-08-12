@@ -38,8 +38,6 @@ async def items(request):
     await ws.send_str(
         f'<div id="items" hx-swap-oob="beforeend">All items checked.<div>'
     )
-    async for msg in ws:
-        ...  # todo
 
     return ws
 
