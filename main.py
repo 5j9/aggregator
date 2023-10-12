@@ -32,11 +32,14 @@ async def items(request):
 
     async for items in check_all():
         items_html = '\n'.join(items)
-        s = f'<div id="items" hx-swap-oob="beforeend">{items_html}<div>'
+        s = f'<div id="items" hx-swap-oob="beforeend">{items_html}</div>'
         await ws.send_str(s)
 
     await ws.send_str(
-        f'<div id="items" hx-swap-oob="beforeend">All items checked.<div>'
+        '<div id="items" hx-swap-oob="afterend">'
+        '<div>All items checked.</div>'
+        '<button hx-get="/mark_all_as_read" hx-swap="delete" hx-target="#items">Mark all as read</button>'
+        '<div>'
     )
 
     return ws
@@ -53,6 +56,18 @@ async def mark_as_read(request):
     q = request.query
     logger.debug('marking %s as read', q['url'])
     LAST_CHECK_RESULTS[q['main_url']][q['url']] = True
+    save_json(LAST_CHECK_RESULTS_PATH, LAST_CHECK_RESULTS)
+    return web.Response(text='', content_type='text/html')
+
+
+@rt.get('/mark_all_as_read')
+async def mark_all_as_read(request):
+    logger.info('marking all as read')
+    for main_url, d in LAST_CHECK_RESULTS.items():
+        for url, is_read in d.items():
+            if is_read is False:
+                logger.debug('marking %s as read', url)
+                d[url] = True
     save_json(LAST_CHECK_RESULTS_PATH, LAST_CHECK_RESULTS)
     return web.Response(text='', content_type='text/html')
 
