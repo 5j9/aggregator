@@ -2,7 +2,7 @@ from collector import Subscription
 
 
 class Example(Subscription):
-    url = "http://example.com/"
+    url = 'http://example.com/'
 
     async def select(self):
         xpath = await self.xpath
@@ -11,7 +11,7 @@ class Example(Subscription):
 
 
 class AnyClassName(Subscription):
-    url = "https://example.com/path.aspx"
+    url = 'https://example.com/path.aspx'
     ssl = False  # ignore ssl verification errors
     doctype = 'xml'  # default doctype is 'html', use 'xml' for parsing xml
 

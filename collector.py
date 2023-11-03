@@ -75,7 +75,7 @@ def show_exception_and_confirm_exit(exc_type, exc_value, tb):
     import traceback
 
     traceback.print_exception(exc_type, exc_value, tb)
-    input("Press enter to exit.")
+    input('Press enter to exit.')
     raise SystemExit
 
 
