@@ -8,7 +8,7 @@ from urllib.parse import quote_plus, urljoin
 from aiohttp import ClientTimeout
 from aiohutils.session import SessionManager
 from lxml.etree import HTMLParser, fromstring
-from path import Path
+from pathlib import Path
 
 
 class Subscription:
