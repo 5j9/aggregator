@@ -3,12 +3,12 @@ from abc import abstractmethod
 from asyncio import as_completed
 from functools import partial
 from json import dumps, loads
+from pathlib import Path
 from urllib.parse import quote_plus, urljoin
 
 from aiohttp import ClientTimeout
 from aiohutils.session import SessionManager
 from lxml.etree import HTMLParser, fromstring
-from pathlib import Path
 
 
 class Subscription:
