@@ -13,16 +13,28 @@ from lxml.etree import HTMLParser, fromstring
 
 class Subscription:
     url: str
+    method: str = 'GET'
     ssl: bool = None
     doctype = 'html'
+    json_payload = None
+    _body: bytes = None
 
     @property
     async def body(self):
-        body = await read(self.url, self.ssl)
+        if self._body is not None:
+            return self._body
+        body = await read(
+            self.url, ssl=self.ssl, json=self.json_payload, method=self.method
+        )
         if body is None:
             logger.error('body is None for %s', self.url)
             return
+        self._body = body
         return body
+
+    @property
+    async def json(self):
+        return loads(await self.body)
 
     @property
     async def parsed(self):
@@ -57,7 +69,7 @@ def get_logger():
     import logging
 
     logger = logging.getLogger(__name__)
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
     stream_handler = logging.StreamHandler()
     stream_handler.setLevel(logging.DEBUG)
     formatter = logging.Formatter(
@@ -154,9 +166,13 @@ def save_json(path: Path, data: dict):
 session_manager = SessionManager(timeout=ClientTimeout(30))
 
 
-async def read(url, ssl):
+async def read(url, method='GET', **kwargs):
+    if method == 'GET':
+        request = session_manager.get
+    else:
+        request = session_manager.session.post
     try:
-        response = await session_manager.get(url, ssl=ssl)
+        response = await request(url, **kwargs)
         return await response.read()
     except Exception as e:
         logger.error(f'{e!r} on {url}')
@@ -179,9 +195,8 @@ def parse(doctype, body):
 async def check(sub: Subscription):
     main_url: str = sub.url
 
-    body = await read(main_url, sub.ssl)
+    body = await sub.body
     if body is None:
-        # logger.error('text is None for %s', main_url)
         return
 
     try:
