@@ -179,13 +179,6 @@ async def read(url, method='GET', **kwargs):
         return
 
 
-def get_checked_links(url):
-    try:
-        return set(LAST_CHECK_RESULTS[url])
-    except KeyError:
-        return ()
-
-
 def parse(doctype, body):
     if doctype == 'xml':
         return parse_xml(body)
