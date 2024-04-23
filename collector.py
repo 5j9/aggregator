@@ -1,8 +1,9 @@
+import sqlite3
 import sys
 from abc import abstractmethod
 from asyncio import as_completed
 from functools import partial
-from json import dumps, loads
+from json import loads
 from pathlib import Path
 from urllib.parse import quote_plus, urljoin
 
@@ -10,9 +11,17 @@ from aiohttp import ClientTimeout
 from aiohutils.session import SessionManager
 from lxml.etree import HTMLParser, fromstring
 
+PROJECT = Path(__file__).parent
+con = sqlite3.connect(PROJECT / 'check_state.db')
+cur = con.cursor()
+cur.execute(
+    'CREATE TABLE IF NOT EXISTS state (source_url, item_url, read_timestamp);'
+)
+
 
 class Subscription:
     url: str
+    name: str
     method: str = 'GET'
     ssl: bool = None
     doctype = 'html'
@@ -115,52 +124,30 @@ sys.excepthook = show_exception_and_confirm_exit
 
 
 # SLUG = str.maketrans(r'\/:*?"<>|', '-' * 9)
-
-PROJECT = Path(__file__).parent
 INBOX = PROJECT / 'inbox'
 
 parse_html = partial(fromstring, parser=HTMLParser(encoding='utf8'))
 parse_xml = fromstring
 
 
-def load_json(path: Path):
-    with path.open('r', encoding='utf8') as f:
-        return loads(f.read())
-
-
-def clean_up_last_check_results():
+def sync_db_with_subscriptions():
     subs_urls = {sub.url for sub in SUBS}
-    unsubscribed_urls = LAST_CHECK_RESULTS.keys() - subs_urls
+    last_checked_urls = cur.execute('SELECT DISTINCT source_url FROM state')
+    unsubscribed_urls = set(last_checked_urls) - subs_urls
     if not unsubscribed_urls:
         return
     logger.info(
-        'deleting %d unsubscribed urls from %s: %s',
+        'deleting %d unsubscribed urls from state.db: %s',
         len(unsubscribed_urls),
-        LAST_CHECK_RESULTS_PATH,
         unsubscribed_urls,
     )
-    for unsubscribed in unsubscribed_urls:
-        del LAST_CHECK_RESULTS[unsubscribed]
+    cur.executemany(
+        'DELETE FROM state WHERE source_url=?',
+        ((url,) for url in unsubscribed_urls),
+    )
 
 
-LAST_CHECK_RESULTS_PATH = PROJECT / 'last_check_results.json'
-LAST_CHECK_RESULTS = load_json(LAST_CHECK_RESULTS_PATH)
-
-
-clean_up_last_check_results()
-
-
-def save_json(path: Path, data: dict):
-    with path.open('w', encoding='utf8') as f:
-        f.write(
-            dumps(
-                data,
-                ensure_ascii=False,
-                check_circular=False,
-                sort_keys=True,
-                indent='\t',
-            )
-        )
+sync_db_with_subscriptions()
 
 
 session_manager = SessionManager(timeout=ClientTimeout(30))
@@ -208,18 +195,22 @@ async def check(sub: Subscription):
         logger.error(f'len(links) != len(titles) on {main_url=}')
         return
 
-    last_checked = LAST_CHECK_RESULTS.setdefault(main_url, {})
-
     # convert relative links to absolute
-    urls = {urljoin(main_url, link): False for link in links}
+    urls = tuple(urljoin(main_url, link) for link in links)
 
     # delete old urls that no longer exist
-    for k in last_checked.keys() - urls.keys():
-        del last_checked[k]
+    cur.execute(
+        f'DELETE FROM state WHERE source_url = {main_url} AND item_url NOT IN {urls}'
+    )
+
+    already_read = cur.execute(
+        f'SELECT item_url, read_timestamp FROM state WHERE source_url = {main_url}'
+    ).fetchall()
+    already_read = dict(already_read)
 
     items = []
     for url, title in zip(urls, titles):
-        if last_checked.setdefault(url, False):
+        if already_read.get(url) is not None:
             break
         items.append(create_item(url, title.strip(), main_url))
 
