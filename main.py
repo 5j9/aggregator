@@ -18,13 +18,13 @@ rt = RouteTableDef()
 @rt.get('/htmx')
 async def htmx(_: Request) -> FileResponse:
     logger.debug('htmx')
-    return FileResponse('htmx-1.9.4.js')
+    return FileResponse('htmx.js')
 
 
 @rt.get('/htmx_ws')
 async def htmx_ws(_: Request) -> FileResponse:
     logger.debug('htmx_ws')
-    return FileResponse('htmx-ws-1.9.4.js')
+    return FileResponse('htmx-ws.js')
 
 
 @rt.get('/items')

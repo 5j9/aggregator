@@ -1,3 +1,4 @@
+// https://unpkg.com/htmx.org@1.9.12/dist/ext/ws.js
 /*
 WebSockets Extension
 ============================
@@ -38,13 +39,14 @@ This extension adds support for WebSockets to htmx.  See /www/extensions/ws.md f
 		 * @param {Event} evt
 		 */
 		onEvent: function (name, evt) {
+			var parent = evt.target || evt.detail.elt;
 
 			switch (name) {
 
 				// Try to close the socket when elements are removed
 				case "htmx:beforeCleanupElement":
 
-					var internalData = api.getInternalData(evt.target)
+					var internalData = api.getInternalData(parent)
 
 					if (internalData.webSocket) {
 						internalData.webSocket.close();
@@ -53,8 +55,6 @@ This extension adds support for WebSockets to htmx.  See /www/extensions/ws.md f
 
 				// Try to create websockets when elements are processed
 				case "htmx:beforeProcessNode":
-					var parent = evt.target;
-
 					forEach(queryAttributeOnThisOrChildren(parent, "ws-connect"), function (child) {
 						ensureWebSocket(child)
 					});
@@ -200,7 +200,7 @@ This extension adds support for WebSockets to htmx.  See /www/extensions/ws.md f
 				if (!this.socket) {
 					api.triggerErrorEvent()
 				}
-				if (sendElt && api.triggerEvent(sendElt, 'htmx:wsBeforeSend', {
+				if (!sendElt || api.triggerEvent(sendElt, 'htmx:wsBeforeSend', {
 					message: message,
 					socketWrapper: this.publicInterface
 				})) {
@@ -341,7 +341,7 @@ This extension adds support for WebSockets to htmx.  See /www/extensions/ws.md f
 
 				/** @type {WebSocketWrapper} */
 				var socketWrapper = api.getInternalData(socketElt).webSocket;
-				var headers = api.getHeaders(sendElt, socketElt);
+				var headers = api.getHeaders(sendElt, api.getTarget(sendElt));
 				var results = api.getInputValues(sendElt, 'post');
 				var errors = results.errors;
 				var rawParameters = results.values;
@@ -379,7 +379,7 @@ This extension adds support for WebSockets to htmx.  See /www/extensions/ws.md f
 
 				socketWrapper.send(body, elt);
 
-				if (api.shouldCancel(evt, elt)) {
+				if (evt && api.shouldCancel(evt, elt)) {
 					evt.preventDefault();
 				}
 			});
@@ -474,4 +474,3 @@ This extension adds support for WebSockets to htmx.  See /www/extensions/ws.md f
 	}
 
 })();
-
