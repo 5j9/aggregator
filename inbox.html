@@ -2,8 +2,8 @@
 <html>
 <head>
 	<link rel="icon" href="data:,">
-	<script src="/htmx"></script>
-	<script src="/htmx_ws"></script>
+	<script src="https://unpkg.com/htmx.org@1.9.12"></script>
+	<script src="https://unpkg.com/htmx.org@1.9.12/dist/ext/ws.js"></script>
 </head>
 
 <body>
@@ -14,7 +14,7 @@
 <div id="leftpane">
 </div>
 
-<div id="items" hx-ext="ws" ws-connect="/items">
+<div id="items" hx-ext="ws" data-ws-connect="/items">
 </div>
 
 </body>

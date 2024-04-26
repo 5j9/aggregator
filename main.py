@@ -15,18 +15,6 @@ from collector import check_all, con, cur, logger
 rt = RouteTableDef()
 
 
-@rt.get('/htmx')
-async def htmx(_: Request) -> FileResponse:
-    logger.debug('htmx')
-    return FileResponse('htmx.js')
-
-
-@rt.get('/htmx_ws')
-async def htmx_ws(_: Request) -> FileResponse:
-    logger.debug('htmx_ws')
-    return FileResponse('htmx-ws.js')
-
-
 @rt.get('/items')
 async def items(request: Request) -> WebSocketResponse:
     logger.debug('items')
