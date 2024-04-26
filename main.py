@@ -25,8 +25,14 @@ async def new_items_ws(request: Request) -> WebSocketResponse:
 
     async for items in check_all():
         items_html = '\n'.join(str(i) for i in items)
-        s = f'<div id="items" hx-swap-oob="beforeend">{items_html}</div>'
-        await ws.send_str(s)
+        await ws.send_str(
+            f'<div id="items" hx-swap-oob="beforeend">{items_html}</div>'
+        )
+    await ws.send_str(
+        '<div id="items" hx-swap-oob="beforeend">'
+        '<div>All items checked.</div>'
+        '<div>'
+    )
     return ws
 
 
