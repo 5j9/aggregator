@@ -1,4 +1,5 @@
 import logging
+import os
 import sqlite3
 from abc import abstractmethod
 from functools import partial
@@ -14,9 +15,10 @@ PROJECT = Path(__file__).parent
 
 def get_logger():
     logger = logging.getLogger(__name__)
-    logger.setLevel(logging.DEBUG)
+    level = os.getenv('LOGLEVEL', 'INFO').upper()
+    logger.setLevel(level)
     stream_handler = logging.StreamHandler()
-    stream_handler.setLevel(logging.DEBUG)
+    stream_handler.setLevel(level)
     formatter = logging.Formatter(
         '%(pathname)s:%(lineno)d %(levelname)s %(message)s'
     )
