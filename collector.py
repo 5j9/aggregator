@@ -25,7 +25,7 @@ sys.excepthook = show_exception_and_confirm_exit
 
 @dataclass(slots=True)
 class Item:
-    main_url: str
+    source_url: str
     url: str
     title: str
 
@@ -34,7 +34,7 @@ class Item:
         return f"""\
             <div class="item">
                 <a href="{self.url}">{self.title}</a>
-                <div class='main_url'>{self.main_url}</div>
+                <div>{self.source_url}</div>
                 <button 
                     hx-get="/mark_as_read?url={quote_plus(self.url)}" 
                     hx-swap="delete"
@@ -72,7 +72,7 @@ sync_db_with_subscriptions()
 
 
 async def check(sub: Subscription) -> list[Item] | None:
-    main_url: str = sub.url
+    source_url: str = sub.url
 
     body = await sub.body
     if body is None:
@@ -81,32 +81,32 @@ async def check(sub: Subscription) -> list[Item] | None:
     try:
         await sub.select()
     except Exception as e:
-        logger.error(f'{e!r} on {main_url}')
+        logger.error(f'{e!r} on {source_url}')
         return
 
     links = sub.links
     if not links:
-        logger.warning(f'no links match on {main_url=}')
+        logger.warning(f'no links match on {source_url=}')
         return
 
     titles = sub.titles
     if len(links) != len(titles):
-        logger.error(f'len(links) != len(titles) on {main_url=}')
+        logger.error(f'len(links) != len(titles) on {source_url=}')
         return
 
     # convert relative links to absolute
-    urls = tuple(urljoin(main_url, link) for link in links)
+    urls = tuple(urljoin(source_url, link) for link in links)
 
     # delete old urls that no longer exist on subscription page
     cur.execute(
         f'DELETE FROM state WHERE source_url = ? AND item_url NOT IN {urls}',
-        (main_url,),
+        (source_url,),
     )
 
     already_read = cur.execute(
         'SELECT item_url FROM state '
         'WHERE source_url = ? AND read_timestamp IS NOT NULL',
-        (main_url,),
+        (source_url,),
     ).fetchall()
     already_read = set(t[0] for t in already_read)
 
@@ -114,18 +114,18 @@ async def check(sub: Subscription) -> list[Item] | None:
     for url, title in zip(urls, titles):
         if url in already_read:
             continue
-        items.append(Item(main_url, url, title.strip()))
+        items.append(Item(source_url, url, title.strip()))
 
     # IGNORE is needed in case multiple tabs run this function concurrently
     cur.executemany(
         'INSERT OR IGNORE INTO state (source_url, item_url, title, read_timestamp) '
         'VALUES (?, ?, ?, Null);',
-        ((item.main_url, item.url, item.title) for item in items),
+        ((item.source_url, item.url, item.title) for item in items),
     )
     if items:
-        logger.debug('found new items on %s', main_url)
+        logger.debug('found new items on %s', source_url)
     else:
-        logger.debug('no new items on %s', main_url)
+        logger.debug('no new items on %s', source_url)
     return items
 
 
