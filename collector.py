@@ -96,9 +96,13 @@ def show_exception_and_confirm_exit(exc_type, exc_value, tb):
     import traceback
 
     traceback.print_exception(exc_type, exc_value, tb)
+    con.commit()
+    con.close()
     input('Press enter to exit.')
     raise SystemExit
 
+
+sys.excepthook = show_exception_and_confirm_exit
 
 # language=html
 item_template = """\
@@ -118,9 +122,6 @@ def create_item(url: str, title: str, main_url: str) -> str:
         qmain_url=quote_plus(main_url),
         title=title,
     )
-
-
-sys.excepthook = show_exception_and_confirm_exit
 
 
 # SLUG = str.maketrans(r'\/:*?"<>|', '-' * 9)
