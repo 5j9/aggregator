@@ -18,7 +18,8 @@ last_check_results: dict = load_json(last_check_results_path)
 now: str = str(datetime.datetime.now())
 for source_url, item_urls in last_check_results.items():
     con.executemany(
-        'INSERT INTO state VALUES(?, ?, ?)',
+        'INSERT INTO state (source_url, item_url, title, read_timestamp) '
+        'VALUES(?, ?, Null, ?)',
         [(source_url, item_url, now) for item_url in item_urls],
     )
 

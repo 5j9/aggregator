@@ -1,102 +1,20 @@
-import sqlite3
 import sys
-from abc import abstractmethod
 from asyncio import as_completed
-from functools import partial
-from json import loads
-from pathlib import Path
+from collections.abc import Generator
+from dataclasses import dataclass
 from urllib.parse import quote_plus, urljoin
-
-from aiohttp import ClientTimeout
-from aiohutils.session import SessionManager
-from lxml.etree import HTMLParser, fromstring
-
-PROJECT = Path(__file__).parent
-con = sqlite3.connect(PROJECT / 'check_state.db')
-cur = con.cursor()
-cur.execute(
-    'CREATE TABLE IF NOT EXISTS state (source_url, item_url, read_timestamp);'
-)
-
-
-class Subscription:
-    url: str
-    name: str
-    method: str = 'GET'
-    ssl: bool = None
-    doctype = 'html'
-    json_payload = None
-    _body: bytes = None
-
-    @property
-    async def body(self):
-        if self._body is not None:
-            return self._body
-        body = await read(
-            self.url, ssl=self.ssl, json=self.json_payload, method=self.method
-        )
-        if body is None:
-            logger.error('body is None for %s', self.url)
-            return
-        self._body = body
-        return body
-
-    @property
-    async def json(self):
-        return loads(await self.body)
-
-    @property
-    async def parsed(self):
-        body = await self.body
-        return parse(self.doctype, body)
-
-    @property
-    async def xpath(
-        self,
-    ):
-        return (await self.parsed).xpath
-
-    @property
-    async def cssselect(
-        self,
-    ):
-        return (await self.parsed).cssselect
-
-    @abstractmethod
-    async def select(self) -> None:
-        self.links = [...]
-        self.titles = [...]
-
 
 # import subscriptions to fill Subscription.__subclassess__
 import subscriptions  # noqa
+from base import Subscription, con, cur, logger
 
 SUBS = [s() for s in Subscription.__subclasses__()]
-
-
-def get_logger():
-    import logging
-
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.INFO)
-    stream_handler = logging.StreamHandler()
-    stream_handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter(
-        '%(pathname)s:%(lineno)d %(levelname)s %(message)s'
-    )
-    stream_handler.setFormatter(formatter)
-    logger.addHandler(stream_handler)
-    return logger
-
-
-logger = get_logger()
 
 
 def show_exception_and_confirm_exit(exc_type, exc_value, tb):
     import traceback
 
     traceback.print_exception(exc_type, exc_value, tb)
-    con.commit()
     con.close()
     input('Press enter to exit.')
     raise SystemExit
@@ -104,37 +22,39 @@ def show_exception_and_confirm_exit(exc_type, exc_value, tb):
 
 sys.excepthook = show_exception_and_confirm_exit
 
-# language=html
-item_template = """\
-<div class="item">
-    <a href="{url}">{title}</a>
-    <div class='main_url'>{main_url}</div>
-    <button hx-get="/mark_as_read?main_url={qmain_url}&url={qurl}" hx-swap="delete" hx-target="closest .item">mark as read</button>
-</div>
-"""
 
+@dataclass(slots=True)
+class Item:
+    main_url: str
+    url: str
+    title: str
 
-def create_item(url: str, title: str, main_url: str) -> str:
-    return item_template.format(
-        url=url,
-        qurl=quote_plus(url),
-        main_url=main_url,
-        qmain_url=quote_plus(main_url),
-        title=title,
-    )
-
-
-# SLUG = str.maketrans(r'\/:*?"<>|', '-' * 9)
-INBOX = PROJECT / 'inbox'
-
-parse_html = partial(fromstring, parser=HTMLParser(encoding='utf8'))
-parse_xml = fromstring
+    def __str__(self) -> str:
+        # language=html
+        return f"""\
+            <div class="item">
+                <a href="{self.url}">{self.title}</a>
+                <div class='main_url'>{self.main_url}</div>
+                <button 
+                    hx-get="/mark_as_read?url={quote_plus(self.url)}" 
+                    hx-swap="delete"
+                    hx-target="closest .item"
+                    hx-disabled-elt="this">mark as read</button>
+            </div>
+        """
 
 
 def sync_db_with_subscriptions():
     subs_urls = {sub.url for sub in SUBS}
-    last_checked_urls = cur.execute('SELECT DISTINCT source_url FROM state')
-    unsubscribed_urls = set(last_checked_urls) - subs_urls
+    unsubscribed_urls = (
+        set(
+            t[0]
+            for t in cur.execute(
+                'SELECT DISTINCT source_url FROM state'
+            ).fetchall()
+        )
+        - subs_urls
+    )
     if not unsubscribed_urls:
         return
     logger.info(
@@ -151,29 +71,7 @@ def sync_db_with_subscriptions():
 sync_db_with_subscriptions()
 
 
-session_manager = SessionManager(timeout=ClientTimeout(30))
-
-
-async def read(url, method='GET', **kwargs):
-    if method == 'GET':
-        request = session_manager.get
-    else:
-        request = session_manager.session.post
-    try:
-        response = await request(url, **kwargs)
-        return await response.read()
-    except Exception as e:
-        logger.error(f'{e!r} on {url}')
-        return
-
-
-def parse(doctype, body):
-    if doctype == 'xml':
-        return parse_xml(body)
-    return parse_html(body)
-
-
-async def check(sub: Subscription):
+async def check(sub: Subscription) -> list[Item] | None:
     main_url: str = sub.url
 
     body = await sub.body
@@ -199,22 +97,31 @@ async def check(sub: Subscription):
     # convert relative links to absolute
     urls = tuple(urljoin(main_url, link) for link in links)
 
-    # delete old urls that no longer exist
+    # delete old urls that no longer exist on subscription page
     cur.execute(
-        f'DELETE FROM state WHERE source_url = {main_url} AND item_url NOT IN {urls}'
+        f'DELETE FROM state WHERE source_url = ? AND item_url NOT IN {urls}',
+        (main_url,),
     )
 
     already_read = cur.execute(
-        f'SELECT item_url, read_timestamp FROM state WHERE source_url = {main_url}'
+        'SELECT item_url FROM state '
+        'WHERE source_url = ? AND read_timestamp IS NOT NULL',
+        (main_url,),
     ).fetchall()
-    already_read = dict(already_read)
+    already_read = set(t[0] for t in already_read)
 
     items = []
     for url, title in zip(urls, titles):
-        if already_read.get(url) is not None:
-            break
-        items.append(create_item(url, title.strip(), main_url))
+        if url in already_read:
+            continue
+        items.append(Item(main_url, url, title.strip()))
 
+    # IGNORE is needed in case multiple tabs run this function concurrently
+    cur.executemany(
+        'INSERT OR IGNORE INTO state (source_url, item_url, title, read_timestamp) '
+        'VALUES (?, ?, ?, Null);',
+        ((item.main_url, item.url, item.title) for item in items),
+    )
     if items:
         logger.debug('found new items on %s', main_url)
     else:
@@ -222,8 +129,8 @@ async def check(sub: Subscription):
     return items
 
 
-async def check_all():
+async def check_all() -> Generator[list[Item], None, None]:
     for c in as_completed([check(sub) for sub in SUBS]):
-        items = await c
+        items: list[Item] | None = await c
         if items is not None:
             yield items

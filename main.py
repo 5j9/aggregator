@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from aiohttp.web import (
     Application,
     FileResponse,
@@ -8,13 +10,7 @@ from aiohttp.web import (
     run_app,
 )
 
-from collector import (
-    LAST_CHECK_RESULTS,
-    LAST_CHECK_RESULTS_PATH,
-    check_all,
-    logger,
-    save_json,
-)
+from collector import check_all, con, cur, logger
 
 rt = RouteTableDef()
 
@@ -39,7 +35,7 @@ async def items(request: Request) -> WebSocketResponse:
     await ws.prepare(request)
 
     async for items in check_all():
-        items_html = '\n'.join(items)
+        items_html = '\n'.join(str(i) for i in items)
         s = f'<div id="items" hx-swap-oob="beforeend">{items_html}</div>'
         await ws.send_str(s)
 
@@ -63,20 +59,22 @@ async def inbox(_: Request) -> FileResponse:
 async def mark_as_read(request) -> Response:
     q = request.query
     logger.debug('marking %s as read', q['url'])
-    LAST_CHECK_RESULTS[q['main_url']][q['url']] = True
-    save_json(LAST_CHECK_RESULTS_PATH, LAST_CHECK_RESULTS)
+    cur.execute(
+        'UPDATE state SET read_timestamp = ? WHERE item_url = ?',
+        (str(datetime.now()), q['url']),
+    )
+    con.commit()
     return Response(text='', content_type='text/html')
 
 
 @rt.get('/mark_all_as_read')
 async def mark_all_as_read(_: Request) -> Response:
     logger.info('marking all as read')
-    for main_url, d in LAST_CHECK_RESULTS.items():
-        for url, is_read in d.items():
-            if is_read is False:
-                logger.debug('marking %s as read', url)
-                d[url] = True
-    save_json(LAST_CHECK_RESULTS_PATH, LAST_CHECK_RESULTS)
+    cur.execute(
+        'UPDATE state SET read_timestamp = ? WHERE read_timestamp is Null',
+        (str(datetime.now()),),
+    )
+    con.commit()
     return Response(text='', content_type='text/html')
 
 
@@ -87,12 +85,9 @@ app.add_routes(rt)
 def run():
     import webbrowser
 
+    port = 8080
     webbrowser.open(f'http://localhost:{port}/')
-    run_app(app, host=host, port=port)
-
-
-host = '127.0.0.1'
-port = 8080
+    run_app(app, host='127.0.0.1', port=port)
 
 
 if __name__ == '__main__':

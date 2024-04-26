@@ -1,2 +1,3 @@
 subscriptions.py
-last_check_results.json
+check_state.sqlite3
+
