@@ -28,18 +28,27 @@ class Item:
     source_url: str
     url: str
     title: str
+    read_timestamp: str = None
 
     def __str__(self) -> str:
-        # language=html
+        if self.read_timestamp is None:
+            # language=html
+            return f"""\
+                <div class="item">
+                    <a href="{self.url}">{self.title}</a>
+                    <div>{self.source_url}</div>
+                    <button 
+                        hx-get="/mark_as_read?url={quote_plus(self.url)}" 
+                        hx-swap="delete"
+                        hx-target="closest .item"
+                        hx-disabled-elt="this">mark as read</button>
+                </div>
+            """
         return f"""\
             <div class="item">
                 <a href="{self.url}">{self.title}</a>
                 <div>{self.source_url}</div>
-                <button 
-                    hx-get="/mark_as_read?url={quote_plus(self.url)}" 
-                    hx-swap="delete"
-                    hx-target="closest .item"
-                    hx-disabled-elt="this">mark as read</button>
+                <div>{self.read_timestamp}</div>
             </div>
         """
 
@@ -134,3 +143,20 @@ async def check_all() -> Generator[list[Item], None, None]:
         items: list[Item] | None = await c
         if items is not None:
             yield items
+
+
+def recently_read_items(limit: int, source_url=None) -> list[Item]:
+    src_cond = (
+        f'source_url = {source_url} AND ' if source_url is not None else ''
+    )
+    results = cur.execute(
+        'SELECT source_url, item_url, title, read_timestamp FROM state '
+        f'WHERE {src_cond} read_timestamp IS NOT NULL '
+        f'ORDER BY read_timestamp DESC '
+        f'LIMIT ?',
+        (limit,),
+    ).fetchall()
+    return [
+        Item(source_url, url, title, read_timestamp)
+        for source_url, url, title, read_timestamp in results
+    ]

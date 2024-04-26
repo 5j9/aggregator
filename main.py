@@ -1,23 +1,24 @@
 from datetime import datetime
+from pathlib import Path
 
 from aiohttp.web import (
     Application,
-    FileResponse,
     Request,
     Response,
     RouteTableDef,
     WebSocketResponse,
     run_app,
 )
+from aiohutils.server import static_path
 
-from collector import check_all, con, cur, logger
+from collector import check_all, con, cur, logger, recently_read_items
 
 rt = RouteTableDef()
 
 
-@rt.get('/items')
-async def items(request: Request) -> WebSocketResponse:
-    logger.debug('items')
+@rt.get('/new_items_ws')
+async def new_items_ws(request: Request) -> WebSocketResponse:
+    logger.debug('new_items_ws')
 
     ws = WebSocketResponse()
     await ws.prepare(request)
@@ -26,20 +27,30 @@ async def items(request: Request) -> WebSocketResponse:
         items_html = '\n'.join(str(i) for i in items)
         s = f'<div id="items" hx-swap-oob="beforeend">{items_html}</div>'
         await ws.send_str(s)
-
-    await ws.send_str(
-        '<div id="items" hx-swap-oob="afterend">'
-        '<div>All items checked.</div>'
-        '<button hx-get="/mark_all_as_read" hx-swap="delete" hx-target="#items">Mark all as read</button>'
-        '<div>'
-    )
-
     return ws
 
 
+@rt.get('/new_items')
+async def new_items(_: Request) -> Response:
+    return Response(
+        text='<div id="items" data-hx-ext="ws" data-ws-connect="/new_items_ws"></div>'
+    )
+
+
+@rt.get('/recent_reads')
+async def recent_reads(_: Request) -> Response:
+    items = recently_read_items(50)
+    items_html = '\n'.join(str(i) for i in items)
+    return Response(text='<div id="items">' + items_html + '</div>')
+
+
 @rt.get('/')
-async def inbox(_: Request) -> FileResponse:
-    return FileResponse('inbox.html')
+async def index(_: Request) -> Response:
+    with (aggregator_dir / 'index.html').open() as f:
+        text = f.read()
+    return Response(
+        text=text.format(css_path=css_path), content_type='text/html'
+    )
 
 
 @rt.get('/mark_as_read')
@@ -65,8 +76,11 @@ async def mark_all_as_read(_: Request) -> Response:
     return Response(text='', content_type='text/html')
 
 
+aggregator_dir = Path(__file__).parent
+css_path, css_route = static_path(aggregator_dir / 'index.css')
+
 app = Application()
-app.add_routes(rt)
+app.add_routes([css_route, *rt])
 
 
 def run():

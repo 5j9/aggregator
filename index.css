@@ -1,0 +1,14 @@
+#leftpane {
+    max-width: 30vw;
+    float: left;
+    margin: 5px;
+}
+#items {
+    max-width: 70vw;
+    float: left;
+    margin: 5px;
+}
+#leftpane>button {
+    display: block;
+    margin: 5px;
+}

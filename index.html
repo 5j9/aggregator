@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20y%3D%22.9em%22%20font-size%3D%22100%22%3E%F0%9F%93%B0%EF%B8%8F%3C/text%3E%3C/svg%3E">
+	<link rel="stylesheet" href="{css_path}">
+	<title>Aggregator</title>
+	<script src="https://unpkg.com/htmx.org@1.9.12"></script>
+	<script src="https://unpkg.com/htmx.org@1.9.12/dist/ext/ws.js"></script>
+</head>
+
+<body>
+
+<div id="toolbar"></div>
+
+<div>
+	<div id="leftpane">
+		<button hx-get="/new_items" hx-disabled-elt="this" hx-target="#items" hx-swap="outerHTML">New items</button>
+		<button hx-get="/recent_reads" hx-disabled-elt="this" hx-target="#items" hx-swap="outerHTML">Recent Reads</button>
+		<button hx-get="/mark_all_as_read" hx-disabled-elt="this" hx-target=".item" hx-swap="delete">Mark all as read</button>
+	</div>
+
+	<div id="items" data-hx-ext="ws" data-ws-connect="/new_items_ws"></div>
+</div>
+
+</body>
+</html>
