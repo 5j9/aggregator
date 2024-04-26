@@ -39,7 +39,6 @@ async def items(request: Request) -> WebSocketResponse:
 
 @rt.get('/')
 async def inbox(_: Request) -> FileResponse:
-    logger.debug('inbox')
     return FileResponse('inbox.html')
 
 
