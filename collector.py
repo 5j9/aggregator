@@ -104,12 +104,14 @@ async def check(sub: Subscription) -> list[Item] | None:
         return
 
     # convert relative links to absolute
-    urls = tuple(urljoin(source_url, link) for link in links)
+    urls = [urljoin(source_url, link) for link in links]
 
     # delete old urls that no longer exist on subscription page
     cur.execute(
-        f'DELETE FROM state WHERE source_url = ? AND item_url NOT IN {urls}',
-        (source_url,),
+        f'DELETE FROM state '
+        f'WHERE source_url = ? '
+        f'AND item_url NOT IN ({', '.join('?' * len(urls))})',
+        (source_url, *urls),
     )
 
     already_read = cur.execute(
