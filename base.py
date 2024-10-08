@@ -66,10 +66,10 @@ class Subscription:
     url: str
     name: str
     method: str = 'GET'
-    ssl: bool = None
+    ssl: bool | None = None
     doctype = 'html'
     json_payload = None
-    _body: bytes = None
+    _body: bytes | None = None
 
     @property
     async def body(self):
@@ -107,5 +107,5 @@ class Subscription:
 
     @abstractmethod
     async def select(self) -> None:
-        self.links = [...]
-        self.titles = [...]
+        self.links = []
+        self.titles = []

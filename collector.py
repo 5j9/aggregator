@@ -1,6 +1,6 @@
 import sys
 from asyncio import as_completed
-from collections.abc import Generator
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from urllib.parse import quote_plus, urljoin
 
@@ -28,7 +28,7 @@ class Item:
     source_url: str
     url: str
     title: str
-    read_timestamp: str = None
+    read_timestamp: str | None = None
 
     def __str__(self) -> str:
         if self.read_timestamp is None:
@@ -140,7 +140,7 @@ async def check(sub: Subscription) -> list[Item] | None:
     return items
 
 
-async def check_all() -> Generator[list[Item], None, None]:
+async def check_all() -> AsyncGenerator[list[Item], None]:
     for c in as_completed([check(sub) for sub in SUBS]):
         items: list[Item] | None = await c
         if items is not None:
