@@ -80,7 +80,7 @@ class Subscription:
         )
         if body is None:
             logger.error('body is None for %s', self.url)
-            return
+            raise
         self._body = body
         return body
 
