@@ -80,13 +80,16 @@ class Subscription:
         )
         if body is None:
             logger.error('body is None for %s', self.url)
-            raise
+            return None
         self._body = body
         return body
 
     @property
     async def json(self):
-        return loads(await self.body)
+        body = await self.body
+        if body is None:
+            return None
+        return loads(body)
 
     @property
     async def parsed(self):
