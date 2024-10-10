@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+from urllib.parse import quote_plus, urljoin
 import logging
 import os
 import sqlite3
@@ -62,6 +64,36 @@ def parse(doctype, body):
     return parse_html(body)
 
 
+@dataclass(slots=True)
+class Item:
+    source_url: str
+    url: str
+    title: str
+    read_timestamp: str | None = None
+
+    def __str__(self) -> str:
+        if self.read_timestamp is None:
+            # language=html
+            return f"""\
+                <div class="item">
+                    <a href="{self.url}">{self.title}</a>
+                    <div>{self.source_url}</div>
+                    <button 
+                        hx-get="/mark_as_read?url={quote_plus(self.url)}" 
+                        hx-swap="delete"
+                        hx-target="closest .item"
+                        hx-disabled-elt="this">mark as read</button>
+                </div>
+            """
+        return f"""\
+            <div class="item">
+                <a href="{self.url}">{self.title}</a>
+                <div>{self.source_url}</div>
+                <div>{self.read_timestamp}</div>
+            </div>
+        """
+
+
 class Subscription:
     url: str
     name: str
@@ -112,3 +144,62 @@ class Subscription:
     async def select(self) -> None:
         self.links = []
         self.titles = []
+
+    async def check(self) -> list[Item] | None:
+        source_url: str = self.url
+
+        body = await self.body
+        if body is None:
+            return
+
+        try:
+            await self.select()
+        except Exception as e:
+            logger.error(f'{e!r} on {source_url}')
+            return
+
+        links = self.links
+        if not links:
+            logger.warning(f'no links match on {source_url=}')
+            return
+
+        titles = self.titles
+        if len(links) != len(titles):
+            logger.error(f'len(links) != len(titles) on {source_url=}')
+            return
+
+        # convert relative links to absolute
+        urls = [urljoin(source_url, link) for link in links]
+
+        # delete old urls that no longer exist on subscription page
+        cur.execute(
+            f'DELETE FROM state '
+            f'WHERE source_url = ? '
+            f'AND item_url NOT IN ({', '.join('?' * len(urls))})',
+            (source_url, *urls),
+        )
+
+        already_read = cur.execute(
+            'SELECT item_url FROM state '
+            'WHERE source_url = ? AND read_timestamp IS NOT NULL',
+            (source_url,),
+        ).fetchall()
+        already_read = set(t[0] for t in already_read)
+
+        items = []
+        for url, title in zip(urls, titles):
+            if url in already_read:
+                continue
+            items.append(Item(source_url, url, title.strip()))
+
+        # IGNORE is needed in case multiple tabs run this function concurrently
+        cur.executemany(
+            'INSERT OR IGNORE INTO state (source_url, item_url, title, read_timestamp) '
+            'VALUES (?, ?, ?, Null);',
+            ((item.source_url, item.url, item.title) for item in items),
+        )
+        if items:
+            logger.debug('found new items on %s', source_url)
+        else:
+            logger.debug('no new items on %s', source_url)
+        return items
