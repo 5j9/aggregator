@@ -22,7 +22,7 @@ def get_logger():
     stream_handler = logging.StreamHandler()
     stream_handler.setLevel(level)
     formatter = logging.Formatter(
-        '%(pathname)s:%(lineno)d %(levelname)s %(message)s'
+        '%(levelname)s %(pathname)s:%(lineno)d\n%(message)s'
     )
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
