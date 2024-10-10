@@ -35,7 +35,7 @@ def sync_db_with_subscriptions():
     if not unsubscribed_urls:
         return
     logger.info(
-        'deleting %d unsubscribed urls from state.db:\n%s',
+        'deleting %d unsubscribed urls from check_state.sqlite3:\n%s',
         len(unsubscribed_urls),
         pformat(unsubscribed_urls),
     )
