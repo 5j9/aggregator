@@ -23,15 +23,13 @@ sys.excepthook = show_exception_and_confirm_exit
 
 def sync_db_with_subscriptions():
     sub_urls = {sub.url for sub in SUBS}
-    unsubscribed_urls = (
-        set(
-            t[0]
-            for t in cur.execute(
-                'SELECT DISTINCT source_url FROM state'
-            ).fetchall()
-        )
-        - sub_urls
-    )
+    db_urls = {
+        t[0]
+        for t in cur.execute(
+            'SELECT DISTINCT source_url FROM state'
+        ).fetchall()
+    }
+    unsubscribed_urls = db_urls - sub_urls
     if not unsubscribed_urls:
         return
     logger.info(
