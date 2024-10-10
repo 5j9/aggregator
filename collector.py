@@ -1,6 +1,7 @@
 import sys
 from asyncio import as_completed
 from collections.abc import AsyncGenerator
+from pprint import pformat
 
 # import subscriptions to fill Subscription.__subclassess__
 from base import Item, Subscription, con, cur, logger
@@ -21,7 +22,7 @@ sys.excepthook = show_exception_and_confirm_exit
 
 
 def sync_db_with_subscriptions():
-    subs_urls = {sub.url for sub in SUBS}
+    sub_urls = {sub.url for sub in SUBS}
     unsubscribed_urls = (
         set(
             t[0]
@@ -29,14 +30,14 @@ def sync_db_with_subscriptions():
                 'SELECT DISTINCT source_url FROM state'
             ).fetchall()
         )
-        - subs_urls
+        - sub_urls
     )
     if not unsubscribed_urls:
         return
     logger.info(
-        'deleting %d unsubscribed urls from state.db: %s',
+        'deleting %d unsubscribed urls from state.db:\n%s',
         len(unsubscribed_urls),
-        unsubscribed_urls,
+        pformat(unsubscribed_urls),
     )
     cur.executemany(
         'DELETE FROM state WHERE source_url=?',
