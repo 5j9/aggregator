@@ -4,6 +4,7 @@ from collections.abc import AsyncGenerator
 from pprint import pformat
 
 # import subscriptions to fill Subscription.__subclassess__
+import subscriptions  # noqa: F401
 from base import Item, Subscription, con, cur, logger
 
 SUBS = [s() for s in Subscription.__subclasses__()]
