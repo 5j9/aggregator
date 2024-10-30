@@ -9,7 +9,7 @@ from aiohttp.web import (
     WebSocketResponse,
     run_app,
 )
-from aiohutils.server import static_path
+from aiohutils.server import serve_static
 
 from collector import check_all, con, cur, logger, recently_read_items
 
@@ -54,9 +54,7 @@ async def recent_reads(_: Request) -> Response:
 async def index(_: Request) -> Response:
     with (aggregator_dir / 'index.html').open() as f:
         text = f.read()
-    return Response(
-        text=text.format(css_path=css_path), content_type='text/html'
-    )
+    return Response(text=text, content_type='text/html')
 
 
 @rt.get('/mark_as_read')
@@ -83,10 +81,10 @@ async def mark_all_as_read(_: Request) -> Response:
 
 
 aggregator_dir = Path(__file__).parent
-css_path, css_route = static_path(aggregator_dir / 'index.css')
 
 app = Application()
-app.add_routes([css_route, *rt])
+app.add_routes(rt)
+serve_static(app, aggregator_dir / 'index.css')
 
 
 def run():
