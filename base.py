@@ -42,12 +42,8 @@ session_manager = SessionManager(timeout=ClientTimeout(30))
 
 
 async def read(url, method='GET', **kwargs):
-    if method == 'GET':
-        request = session_manager.get
-    else:
-        request = session_manager.session.post
     try:
-        response = await request(url, **kwargs)
+        response = await session_manager.request(url, **kwargs)
         return await response.read()
     except Exception as e:
         logger.error(f'{e!r} on {url}')
@@ -175,7 +171,7 @@ class Subscription:
         cur.execute(
             f'DELETE FROM state '
             f'WHERE source_url = ? '
-            f'AND item_url NOT IN ({', '.join('?' * len(urls))})',
+            f'AND item_url NOT IN ({", ".join("?" * len(urls))})',
             (source_url, *urls),
         )
 
