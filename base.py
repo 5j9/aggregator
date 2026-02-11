@@ -43,7 +43,7 @@ session_manager = SessionManager(timeout=ClientTimeout(30))
 
 async def read(url, method='GET', **kwargs):
     try:
-        response = await session_manager.request(url, **kwargs)
+        response = await session_manager.request(method, url, **kwargs)
         return await response.read()
     except Exception as e:
         logger.error(f'{e!r} on {url}')
