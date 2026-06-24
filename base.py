@@ -1,5 +1,3 @@
-import logging
-import os
 import sqlite3
 from abc import abstractmethod
 from dataclasses import dataclass
@@ -8,28 +6,11 @@ from json import loads
 from pathlib import Path
 from urllib.parse import quote_plus, urljoin
 
-from aiohttp import ClientTimeout
 from aiohutils.session import SessionManager
+from applog import logger
 from lxml.etree import HTMLParser, fromstring
 
 PROJECT = Path(__file__).parent
-
-
-def get_logger():
-    logger = logging.getLogger(__name__)
-    level = os.getenv('LOGLEVEL', 'INFO').upper()
-    logger.setLevel(level)
-    stream_handler = logging.StreamHandler()
-    stream_handler.setLevel(level)
-    formatter = logging.Formatter(
-        '%(levelname)s %(pathname)s:%(lineno)d\n%(message)s'
-    )
-    stream_handler.setFormatter(formatter)
-    logger.addHandler(stream_handler)
-    return logger
-
-
-logger = get_logger()
 
 con = sqlite3.connect(PROJECT / 'check_state.sqlite3')
 
@@ -38,7 +19,7 @@ cur.execute(
     'CREATE TABLE IF NOT EXISTS state (source_url, item_url TEXT PRIMARY KEY, title, read_timestamp);'
 )
 
-session_manager = SessionManager(timeout=ClientTimeout(30))
+session_manager = SessionManager()
 
 
 async def read(url, method='GET', **kwargs):
