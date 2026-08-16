@@ -10,19 +10,36 @@ dependencies = [
     "lxml>=5.4.0",
 ]
 
+[project.urls]
+GitHub = "https://github.com/5j9/aggregator"
 [tool.ruff]
 line-length = 79
 format.quote-style = 'single'
-lint.isort.combine-as-imports = true
-lint.extend-select = [
+
+[tool.ruff.lint]
+extend-select = [
     'FA',  # flake8-future-annotations
     'I',  # isort
     'UP',  # pyupgrade
 ]
-lint.ignore = [
-    'UP027',  # list comprehensions are faster than generator expressions
-    'E721',  # Do not compare types, use `isinstance()`
+ignore = [
+    'B023', # function-uses-loop-variable
+    'BLE001', # blind-except
+    'DTZ', # flake8-datetimez
+    'E721', # Do not compare types, use `isinstance()`
+    'PLW1510', # subprocess-run-without-check
+    'RUF001', # ambiguous-unicode-character-string
+    'RUF002', # ambiguous-unicode-character-docstring
+    'RUF003', # ambiguous-unicode-character-comment
+    'RUF012', # mutable-class-default
+    'RUF059', # Unpacked variable never used
+    'SIM102', # collapsible-if
+    'SIM103', # Return the condition directly
+    'SIM115', # Use a context manager for opening files
 ]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
 
 [tool.pyright]
 typeCheckingMode = 'standard'
@@ -32,6 +49,17 @@ reportUnnecessaryCast = "warning"
 reportUnnecessaryContains = "warning"
 reportUnnecessaryIsInstance = "warning"
 reportUnnecessaryTypeIgnoreComment = true
+reportInvalidStringEscapeSequence = false
+reportConstantRedefinition = 'error'
+reportTypeCommentUsage = 'warning'
+reportUnnecessaryComparison = 'warning'
+venvPath = "."
+venv = ".venv"
 
-[tool.pytest.ini_options]
-addopts = '--quiet --tb=short'
+[tool.pytest]
+addopts = ["--quiet", "--tb=short"]
+truncation_limit_lines = '0'
+truncation_limit_chars = '0'
+[tool.uv.build-backend]
+module-root = ""
+module-name = "aggregator"

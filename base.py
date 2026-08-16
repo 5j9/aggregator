@@ -161,7 +161,7 @@ class Subscription:
             'WHERE source_url = ? AND read_timestamp IS NOT NULL',
             (source_url,),
         ).fetchall()
-        already_read = set(t[0] for t in already_read)
+        already_read = {t[0] for t in already_read}
 
         items = []
         for url, title in zip(urls, titles):
