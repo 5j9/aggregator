@@ -1,11 +1,33 @@
+import importlib.util
+import os
 import sys
 from asyncio import as_completed
 from collections.abc import AsyncGenerator
 from pprint import pformat
 
-# import subscriptions to fill Subscription.__subclassess__
-import subscriptions  # noqa: F401
 from base import Item, Subscription, con, cur, logger
+
+
+def import_subscriptions():
+    """Import subscriptions module from OneDrive"""
+    # Get OneDrive path
+    onedrive_path = os.environ.get('OneDrive')
+    if onedrive_path is None:
+        raise OSError('OneDrive environment variable not set')
+
+    file_path = os.path.join(onedrive_path, 'subscriptions.py')
+    spec = importlib.util.spec_from_file_location('subscriptions', file_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f'Could not load spec for: {file_path}')
+
+    subscriptions = importlib.util.module_from_spec(spec)
+    sys.modules['subscriptions'] = subscriptions
+    spec.loader.exec_module(subscriptions)
+
+    return subscriptions
+
+
+import_subscriptions()
 
 SUBS = [s() for s in Subscription.__subclasses__()]
 
